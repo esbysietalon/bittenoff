@@ -21,31 +21,52 @@ use amethyst::{
     renderer::{Camera, ImageFormat, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
 };
 
-pub const PLAYER_WIDTH: f32 = 16.0;
-pub const PLAYER_HEIGHT: f32 = 32.0;
+use crate::components::Id;
+
+pub const PLAYER_WIDTH: usize = 1;
+pub const PLAYER_HEIGHT: usize = 1;
 pub const PERSON_NUM: u32 = 15;
+pub const TILE_SIZE: usize = 16;
+pub const TICK_RATE: f32 = 0.5;
+
+#[derive(Default, Debug)]
+pub struct Timer {
+    pub time: f32,
+    pub tick: bool,
+}
+impl Timer {
+    pub fn new() -> Timer {
+        Timer {
+            time: 0.0,
+            tick: false,
+        }
+    }
+    pub fn tick(&self) -> bool {
+        self.tick
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Tile {
+    Null = 0, 
+    Grass,
+}
 
 #[derive(Default, Clone)]
 pub struct Map{
-    pub width: u32, 
-    pub height: u32,
-    pub left_bound: i32, 
-    pub right_bound: i32, 
-    pub upper_bound: i32, 
-    pub lower_bound: i32,
-    pub storage: Vec<(f32, components::Id)>,
+    pub width: usize, 
+    pub height: usize,
+    pub tiles: Vec<Tile>,
+    pub entities: Vec<Id>,
 }
 
 impl Map {
-    pub fn new(u_b: i32, r_b: i32, d_b: i32, l_b: i32) -> Map {
+    pub fn new(width: usize, height: usize) -> Map {
         Map {
-            width: (r_b - l_b) as u32,
-            height: (u_b - d_b) as u32,
-            left_bound: l_b,
-            right_bound: r_b,
-            upper_bound: u_b,
-            lower_bound: d_b,
-            storage: vec![(0.0, components::Id::nil()); ((r_b - l_b) * (u_b - d_b)) as usize],
+            width,
+            height,
+            tiles: vec![Tile::Null; width * height],
+            entities: vec![Id::nil(); width * height],
         }   
     }
 }
@@ -69,6 +90,39 @@ pub struct PlayState{
     sprite_sheet_handle: Option<Handle<SpriteSheet>>,
 }
 
+
+fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
+    let s_w = world.read_resource::<Config>().stage_width;
+    let s_h = world.read_resource::<Config>().stage_height;
+
+    let tile_num_w = s_w as usize / TILE_SIZE;
+    let tile_num_h = s_h as usize / TILE_SIZE;
+
+    for y in 0..tile_num_h {
+        for x in 0..tile_num_w {
+            let mut local_transform = Transform::default();
+
+            {
+                let mut map = world.write_resource::<Map>();
+            }
+
+            let tile = Tile::Grass;
+
+            local_transform.set_translation_xyz((x * TILE_SIZE) as f32, (y * TILE_SIZE) as f32, 0.0);
+            let sprite_render = SpriteRender {
+                sprite_sheet: sprite_sheet.clone(),
+                sprite_number: tile as usize,
+            };
+
+            world
+                .create_entity()
+                .with(sprite_render)
+                .with(local_transform)
+                .build();
+        }
+    }
+
+}
 fn initialise_camera(world: &mut World) {
     let mut transform = Transform::default();
     
@@ -103,6 +157,7 @@ fn initialise_player(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             height: PLAYER_HEIGHT,
         })
         .with(components::Id::new())
+        .with(components::Physical::new(components::Physical::into_tile_position((local_transform.translation().x, local_transform.translation().y))))
         .with(local_transform)
         .build();
 }
@@ -122,21 +177,20 @@ fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
         world
             .create_entity()
             .with(sprite_render)
-            .with(components::Mover::new(PLAYER_WIDTH, PLAYER_HEIGHT))
-            .with(components::Physical::new(vec![((0, (-(PLAYER_HEIGHT / 2.0) as i32)), (0, (-(PLAYER_HEIGHT / 2.0) as i32)))]))
             .with(components::Id::new())
+            .with(components::Physical::new(components::Physical::into_tile_position((local_transform.translation().x, local_transform.translation().y))))
             .with(local_transform)
             .build();
     }
 }
 
-fn load_sprite_sheet(world: &mut World) -> Handle<SpriteSheet> {
+fn load_sprite_sheet(world: &mut World, name: &str) -> Handle<SpriteSheet> {
     //loading spritesheet
     let texture_handle = {
         let loader = world.read_resource::<Loader>();
         let texture_storage = world.read_resource::<AssetStorage<Texture>>();
         loader.load(
-            format!("{}{}{}", "res/textures/",world.read_resource::<Config>().spritesheet_name,".png"),
+            format!("{}{}{}", "res/textures/",name,".png"),
             ImageFormat::default(),
             (),
             &texture_storage,
@@ -146,7 +200,7 @@ fn load_sprite_sheet(world: &mut World) -> Handle<SpriteSheet> {
     let loader = world.read_resource::<Loader>();
     let sprite_sheet_store = world.read_resource::<AssetStorage<SpriteSheet>>();
     loader.load(
-        format!("{}{}{}", "res/textures/",world.read_resource::<Config>().spritesheet_name,".ron"),
+        format!("{}{}{}", "res/textures/",name,".ron"),
         SpriteSheetFormat(texture_handle),
         (),
         &sprite_sheet_store,
@@ -181,13 +235,13 @@ impl SimpleState for LoadingState {
             let loaded = self.load_thread.take().unwrap().join().expect("Error encountered while joining thread");
             
             //NOTICE Map is defined here
-            let map = Map::new(loaded.stage_height as i32, loaded.stage_width as i32, 0, 0);
+            let map = Map::new(loaded.stage_width as usize, loaded.stage_height as usize);
             
             
             println!("Loaded config: {:?}", loaded);
             data.world.insert(loaded);
             data.world.insert(map);
-
+            data.world.insert(Timer::new());
             //data.world.register::<components::Id>();
 
             Trans::Switch(Box::new(PlayState::default()))
@@ -206,9 +260,15 @@ impl SimpleState for PlayState {
         println!("Entering play state..");
         let world = data.world;
 
-        self.sprite_sheet_handle.replace(load_sprite_sheet(world));
+        self.sprite_sheet_handle.replace(load_sprite_sheet(world, "tiles"));
+
+        initialise_tiles(world, self.sprite_sheet_handle.clone().unwrap());
+        
+        self.sprite_sheet_handle.replace(load_sprite_sheet(world, "spritesheet"));
+        
         initialise_player(world, self.sprite_sheet_handle.clone().unwrap());
-        initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
+
+        //initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
         initialise_camera(world);
     }
 }

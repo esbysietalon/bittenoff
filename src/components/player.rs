@@ -1,12 +1,12 @@
 use amethyst::ecs::prelude::{Component, VecStorage};
 
 pub struct Player{
-    pub width: f32,
-    pub height: f32,
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Player{
-    pub fn new(width: f32, height: f32) -> Player {
+    pub fn new(width: usize, height: usize) -> Player {
         Player {
             width,
             height,

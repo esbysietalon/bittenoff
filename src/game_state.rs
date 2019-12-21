@@ -29,23 +29,6 @@ pub const PERSON_NUM: u32 = 15;
 pub const TILE_SIZE: usize = 16;
 pub const TICK_RATE: f32 = 0.5;
 
-#[derive(Default, Debug)]
-pub struct Timer {
-    pub time: f32,
-    pub tick: bool,
-}
-impl Timer {
-    pub fn new() -> Timer {
-        Timer {
-            time: 0.0,
-            tick: false,
-        }
-    }
-    pub fn tick(&self) -> bool {
-        self.tick
-    }
-}
-
 #[derive(Clone, Copy)]
 pub enum Tile {
     Null = 0, 
@@ -95,8 +78,8 @@ fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let s_w = world.read_resource::<Config>().stage_width;
     let s_h = world.read_resource::<Config>().stage_height;
 
-    let tile_num_w = s_w as usize / TILE_SIZE;
-    let tile_num_h = s_h as usize / TILE_SIZE;
+    let tile_num_w = s_w as usize / TILE_SIZE + 1;
+    let tile_num_h = s_h as usize / TILE_SIZE + 1;
 
     for y in 0..tile_num_h {
         for x in 0..tile_num_w {
@@ -241,8 +224,6 @@ impl SimpleState for LoadingState {
             println!("Loaded config: {:?}", loaded);
             data.world.insert(loaded);
             data.world.insert(map);
-            data.world.insert(Timer::new());
-            //data.world.register::<components::Id>();
 
             Trans::Switch(Box::new(PlayState::default()))
         }else{

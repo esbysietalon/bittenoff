@@ -41,7 +41,6 @@ fn main() -> amethyst::Result<()> {
     let game_data = GameDataBuilder::default()
         .with_bundle(TransformBundle::new())?
         .with_bundle(input_bundle)?
-        .with(systems::TimerSystem, "timer_system", &[])
         .with(systems::PlayerMoveSystem, "player_move_system", &["input_system"])
         .with(systems::SimpleIdle, "simple_idle_system", &[])
         .with(systems::PhysicalSystem, "physical_system", &[])

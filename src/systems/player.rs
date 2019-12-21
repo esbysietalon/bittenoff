@@ -4,44 +4,48 @@ use amethyst::{
     ecs::prelude::{Join, Read, ReadStorage, System, SystemData, WriteStorage},
     input::{InputHandler, StringBindings},
 };
-use crate::game_state::{Config, Timer};
 use crate::components::{Player, Physical};
+use crate::game_state::{Config};
 
 pub struct MoveSystem;
 
 impl<'s> System<'s> for MoveSystem{
     type SystemData = (
         ReadStorage<'s, Player>,
-        WriteStorage<'s, Physical>,
+        WriteStorage<'s, Transform>,
         Read<'s, Config>,
         Read<'s, InputHandler<StringBindings>>,
-        Read<'s, Timer>
+        Read<'s, Time>
     );
 
-    fn run(&mut self, (players, mut physicals, config, input, timer): Self::SystemData) {
-        //println!("timer details {} {}", timer.time, timer.tick);
-        if timer.tick() {
-            for (player, physical) in (&players, &mut physicals).join(){
-                println!("player position at {:?}", physical.get_tile_position());
+    fn run(&mut self, (players, mut transforms, config, input, time): Self::SystemData) {
+        
 
-                let movement = input.axis_value("horizontal_mv");
-                if let Some(mv_amount) = movement {
-                    if mv_amount < 0.0 {
-                        physical.move_tile("l");
-                    } else if mv_amount > 0.0 {
-                        physical.move_tile("r");
-                    }
-                }
+        for (player, transform) in (&players, &mut transforms).join(){
+            let movement = input.axis_value("horizontal_mv");
+            println!("running, since {}", time.delta_seconds());
+            if let Some(mv_amount) = movement {
+                let scaled_amount = 100.0 * time.delta_seconds() * mv_amount as f32;
+                let x = transform.translation().x;
+                println!("updating x by {}", scaled_amount);
+                transform.set_translation_x(
+                    (x + scaled_amount)
+                        .min(config.stage_width as f32 - player.width as f32 * 0.5)
+                        .max(player.width as f32 * 0.5),
+                );
+            }
 
 
-                let movement = input.axis_value("vertical_mv");
-                if let Some(mv_amount) = movement {
-                    if mv_amount < 0.0 {
-                        physical.move_tile("d");
-                    } else if mv_amount > 0.0 {
-                        physical.move_tile("u");
-                    }
-                }
+            let movement = input.axis_value("vertical_mv");
+            if let Some(mv_amount) = movement {
+                let scaled_amount = 100.0 * time.delta_seconds() * mv_amount as f32;
+                let y = transform.translation().y;
+                println!("updating x by {}", scaled_amount);
+                transform.set_translation_y(
+                    (y + scaled_amount)
+                        .min(config.stage_height as f32 - player.height as f32 * 0.5)
+                        .max(player.height as f32 * 0.5),
+                );
             }
         }
     }

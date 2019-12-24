@@ -17,6 +17,7 @@ use std::sync::atomic::Ordering;
 use serde::Deserialize;
 use ron::de::from_str;
 
+use amethyst::ecs::prelude::Entity;
 use amethyst::{
     assets::{AssetStorage, Handle, Loader},
     core::transform::Transform,
@@ -49,6 +50,7 @@ pub struct Map{
     pub height: usize,
     pub tiles: Vec<Tile>,
     pub entities: Vec<Id>,
+    pub rerolled: bool,
 }
 
 impl Map {
@@ -56,8 +58,9 @@ impl Map {
         Map {
             width,
             height,
-            tiles: vec![Tile::Size; (width / TILE_SIZE + 1) * (height / TILE_SIZE + 1)],
+            tiles: vec![Tile::Size; width * height],
             entities: vec![Id::nil(); ENTITY_LIM],
+            rerolled: false,
         }   
     }
 }
@@ -80,6 +83,15 @@ pub struct LoadingState{
 #[derive(Default)]
 pub struct PlayState{
     //sprite_sheet_handle: Option<Handle<SpriteSheet>>,
+}
+
+pub fn regenerate_map(map: &mut Map){
+    let mut rng = rand::thread_rng();
+
+    for i in 0..map.tiles.len() {
+        map.tiles[i] = num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap();
+    }
+    map.rerolled = true;
 }
 
 
@@ -124,6 +136,7 @@ fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
                 .create_entity()
                 .with(sprite_render)
                 .with(local_transform)
+                .with(components::Tile::new((x + y * tile_num_w) as usize))
                 .build();
         }
     }
@@ -241,7 +254,7 @@ impl SimpleState for LoadingState {
             let loaded = self.load_thread.take().unwrap().join().expect("Error encountered while joining thread");
             
             //NOTICE Map is defined here
-            let map = Map::new(loaded.stage_width as usize, loaded.stage_height as usize);
+            let map = Map::new(loaded.stage_width as usize / TILE_SIZE + 1, loaded.stage_height as usize / TILE_SIZE + 1);
             
             
             println!("Loaded config: {:?}", loaded);

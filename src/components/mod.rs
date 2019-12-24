@@ -2,6 +2,8 @@ pub use self::player::Player;
 pub use self::id::Id;
 pub use self::mover::{Mover, Goal};
 pub use self::physical::Physical;
+pub use self::fps::Counter;
+mod fps;
 mod player;
 mod id;
 mod mover;

@@ -1,10 +1,14 @@
 extern crate amethyst;
 
+extern crate num;
+
 use crate::components;
 
 use std::thread;
 use std::thread::JoinHandle;
 use std::fs;
+
+use rand::Rng;
 
 use std::sync::{Arc};
 use std::sync::atomic::AtomicBool;
@@ -26,13 +30,17 @@ use crate::components::Id;
 pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
 pub const PERSON_NUM: u32 = 15;
+
 pub const TILE_SIZE: usize = 16;
+pub const ENTITY_LIM: usize = 100;
+
 pub const TICK_RATE: f32 = 0.5;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, FromPrimitive)]
 pub enum Tile {
-    Null = 0, 
-    Grass,
+    Grass_1 = 0, 
+    Grass_2,
+    Size
 }
 
 #[derive(Default, Clone)]
@@ -48,8 +56,8 @@ impl Map {
         Map {
             width,
             height,
-            tiles: vec![Tile::Null; width * height],
-            entities: vec![Id::nil(); width * height],
+            tiles: vec![Tile::Size; (width / TILE_SIZE + 1) * (height / TILE_SIZE + 1)],
+            entities: vec![Id::nil(); ENTITY_LIM],
         }   
     }
 }
@@ -66,13 +74,24 @@ pub struct LoadingState{
     pub config_path: String,
     pub loading: Arc<AtomicBool>,
     pub load_thread: Option<JoinHandle<(Config)>>,
+    sprite_sheet_handle: Option<Handle<SpriteSheet>>
 }
 
 #[derive(Default)]
 pub struct PlayState{
-    sprite_sheet_handle: Option<Handle<SpriteSheet>>,
+    //sprite_sheet_handle: Option<Handle<SpriteSheet>>,
 }
 
+
+fn generate_map(world: &mut World){
+    let mut map = world.write_resource::<Map>();
+
+    let mut rng = rand::thread_rng();
+
+    for i in 0..map.tiles.len() {
+        map.tiles[i] = num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap();
+    }
+}
 
 fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let s_w = world.read_resource::<Config>().stage_width;
@@ -81,16 +100,20 @@ fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let tile_num_w = s_w as usize / TILE_SIZE + 1;
     let tile_num_h = s_h as usize / TILE_SIZE + 1;
 
+
+    let mut tiles = Vec::new();
+    
+    {
+        let map = &world.read_resource::<Map>();
+        tiles = map.tiles.clone();
+    }
+
     for y in 0..tile_num_h {
         for x in 0..tile_num_w {
             let mut local_transform = Transform::default();
 
-            {
-                let mut map = world.write_resource::<Map>();
-            }
-
-            let tile = Tile::Grass;
-
+            let tile = tiles[x + y * tile_num_w];
+            
             local_transform.set_translation_xyz((x * TILE_SIZE) as f32, (y * TILE_SIZE) as f32, 0.0);
             let sprite_render = SpriteRender {
                 sprite_sheet: sprite_sheet.clone(),
@@ -225,6 +248,27 @@ impl SimpleState for LoadingState {
             data.world.insert(loaded);
             data.world.insert(map);
 
+
+            let world = &mut data.world;
+
+            generate_map(*world);
+
+            self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "tiles"));
+    
+            initialise_tiles(*world, self.sprite_sheet_handle.clone().unwrap());
+            
+            self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "spritesheet"));
+            
+            initialise_player(*world, self.sprite_sheet_handle.clone().unwrap());
+    
+            //initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
+            initialise_camera(*world);
+
+            data.world
+                .create_entity()
+                .with(components::Counter::new())
+                .build();
+
             Trans::Switch(Box::new(PlayState::default()))
         }else{
             println!("Loading..");
@@ -239,17 +283,6 @@ impl SimpleState for LoadingState {
 impl SimpleState for PlayState {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>){
         println!("Entering play state..");
-        let world = data.world;
-
-        self.sprite_sheet_handle.replace(load_sprite_sheet(world, "tiles"));
-
-        initialise_tiles(world, self.sprite_sheet_handle.clone().unwrap());
         
-        self.sprite_sheet_handle.replace(load_sprite_sheet(world, "spritesheet"));
-        
-        initialise_player(world, self.sprite_sheet_handle.clone().unwrap());
-
-        //initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
-        initialise_camera(world);
     }
 }

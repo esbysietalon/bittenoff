@@ -1,5 +1,6 @@
 extern crate amethyst;
-
+#[macro_use]
+extern crate num_derive;
 mod game_state;
 mod systems;
 mod components;
@@ -10,6 +11,8 @@ use std::fs;
 use std::fs::File;
 use serde::Deserialize;
 use ron::de::from_str;
+
+
 
 use amethyst::{
     Logger,
@@ -31,6 +34,8 @@ fn main() -> amethyst::Result<()> {
     let display_config_path = app_root.join("config").join("display.ron");
     let game_config_path = app_root.join("config").join("globals.ron");
 
+    
+
     Logger::from_config(Default::default())
         .level_for("amethyst_rendy", amethyst::LogLevelFilter::Warn)
         .start();
@@ -44,6 +49,7 @@ fn main() -> amethyst::Result<()> {
         .with(systems::PlayerMoveSystem, "player_move_system", &["input_system"])
         .with(systems::SimpleIdle, "simple_idle_system", &[])
         .with(systems::PhysicalSystem, "physical_system", &[])
+        .with(systems::CounterSystem, "fps_system", &[])
         .with(systems::MoveSystem, "move_system", &[])
         .with(systems::RudderSystem, "rudder_system", &[])
         .with_bundle(

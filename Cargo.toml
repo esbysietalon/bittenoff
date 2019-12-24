@@ -14,3 +14,8 @@ uuid = {version = "0.8.1", features = ["v4"]}
 angular = "0.1.1"
 rand = "0.7.2"
 pathfinding = "2.0.0"
+tiled = "0.8.1"
+num-derive = "0.3.0"
+num = "0.2.0"
+num-traits = "0.2.10"
+fps_counter = "1.0.0"

@@ -45,11 +45,34 @@ pub enum Tile {
 }
 
 #[derive(Default, Clone)]
+pub struct Area{
+    pub tiles: Vec<Tile>,
+    pub n: usize,
+    pub e: usize,
+    pub w: usize,
+    pub s: usize,
+}
+
+impl Area{
+    pub fn new() -> Area{
+        Area {
+            tiles: Vec::new(),
+            n: usize::max_value(),
+            e: usize::max_value(),
+            w: usize::max_value(),
+            s: usize::max_value(),
+        }
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct Map{
     pub width: usize, 
     pub height: usize,
     pub tiles: Vec<Tile>,
     pub entities: Vec<Id>,
+    pub world_map: Vec<Area>,
+    pub area_index: usize,
     pub rerolled: bool,
 }
 
@@ -60,6 +83,8 @@ impl Map {
             height,
             tiles: vec![Tile::Size; width * height],
             entities: vec![Id::nil(); ENTITY_LIM],
+            world_map: Vec::new(),
+            area_index: 0,
             rerolled: false,
         }   
     }
@@ -85,24 +110,101 @@ pub struct PlayState{
     //sprite_sheet_handle: Option<Handle<SpriteSheet>>,
 }
 
-pub fn regenerate_map(map: &mut Map){
-    let mut rng = rand::thread_rng();
+pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
+    println!("loading area to map from {}", to_load.1);
+
+    let mut area_pointer = &(Area::new());
+    match to_load.0 {
+        Some(A) => {
+            map.world_map.push(A);
+            area_pointer = &map.world_map[to_load.1];
+        }
+        None => {
+            area_pointer = &map.world_map[to_load.1];
+        }
+    }
 
     for i in 0..map.tiles.len() {
-        map.tiles[i] = num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap();
+        map.tiles[i] = (*area_pointer).tiles[i];
     }
+
+    map.area_index = to_load.1;
     map.rerolled = true;
+}
+
+pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Option<Area>, usize){
+    let old_map_len = map.world_map.len();
+
+    let mut new_area_index = &mut (Area::new()).n;
+
+    {
+        if direction == 'e' {
+            new_area_index = &mut ((map.world_map[area_index]).e);
+        }else if direction == 'w' {
+            new_area_index = &mut ((map.world_map[area_index]).w);
+        }else if direction == 's' {
+            new_area_index = &mut ((map.world_map[area_index]).s);
+        }else if direction == 'n' {
+            new_area_index = &mut ((map.world_map[area_index]).n);
+        }   
+    }
+    
+    println!("area lookup is {} (throwaway value is {})", *new_area_index, usize::max_value());
+
+
+    if *new_area_index == usize::max_value() {
+        println!("creating new area");
+
+        let mut area = Area::new();
+
+        let mut rng = rand::thread_rng();
+
+        for i in 0..map.tiles.len() {
+            area.tiles.push(num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap());
+            map.tiles[i] = area.tiles[i];
+        }
+
+        //link the list backwards
+        if direction == 'n' {
+            area.s = map.area_index;
+        }else if direction == 'e' {
+            area.w = map.area_index;
+        }else if direction == 'w' {
+            area.e = map.area_index;
+        }else if direction == 's' {
+            area.n = map.area_index;
+        }
+
+        //link the list forwards
+        *new_area_index = old_map_len;
+        //map.world_map.push(area);
+        (Some(area), *new_area_index)
+    }else{
+        println!("no new area needed; found area {}", *new_area_index);
+
+        //let area = &map.world_map[*new_area_index];
+
+        //for i in 0..map.tiles.len() {
+        //    map.tiles[i] = (*area).tiles[i];
+        //}
+        (None, *new_area_index)
+    }
 }
 
 
 fn generate_map(world: &mut World){
     let mut map = world.write_resource::<Map>();
 
+    let mut area = Area::new();
+
     let mut rng = rand::thread_rng();
 
-    for i in 0..map.tiles.len() {
-        map.tiles[i] = num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap();
+    for i in 0..(map.width * map.height) {
+        area.tiles.push(num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap());
+        map.tiles[i] = area.tiles[i];
     }
+
+    map.world_map.push(area);
 }
 
 fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {

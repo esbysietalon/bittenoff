@@ -17,6 +17,8 @@ use std::sync::atomic::Ordering;
 use serde::Deserialize;
 use ron::de::from_str;
 
+use noise::{Seedable, NoiseFn, Perlin};
+
 use amethyst::ecs::prelude::Entity;
 use amethyst::{
     assets::{AssetStorage, Handle, Loader},
@@ -51,6 +53,10 @@ pub struct Area{
     pub e: usize,
     pub w: usize,
     pub s: usize,
+    pub nw: usize,
+    pub ne: usize,
+    pub sw: usize,
+    pub se: usize,
 }
 
 impl Area{
@@ -61,6 +67,10 @@ impl Area{
             e: usize::max_value(),
             w: usize::max_value(),
             s: usize::max_value(),
+            nw: usize::max_value(),
+            ne: usize::max_value(),
+            sw: usize::max_value(),
+            se: usize::max_value(),
         }
     }
 }
@@ -137,14 +147,44 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
 
     let mut new_area_index = &mut (Area::new()).n;
 
+    let mut diagonal_a = usize::max_value(); //n/w lean
+    let mut diagonal_b = usize::max_value(); //s/e lean
+
+    let mut diagonal_c = usize::max_value(); //n/w lean
+    let mut diagonal_d = usize::max_value(); //s/e lean
+
     {
         if direction == 'e' {
+            diagonal_a = map.world_map[area_index].n;
+            diagonal_b = map.world_map[area_index].s;
+
+            diagonal_c = map.world_map[area_index].ne;
+            diagonal_d = map.world_map[area_index].se;
+
             new_area_index = &mut ((map.world_map[area_index]).e);
         }else if direction == 'w' {
+            diagonal_a = map.world_map[area_index].n;
+            diagonal_b = map.world_map[area_index].s;
+            
+            diagonal_c = map.world_map[area_index].nw;
+            diagonal_d = map.world_map[area_index].sw;
+
             new_area_index = &mut ((map.world_map[area_index]).w);
         }else if direction == 's' {
+            diagonal_a = map.world_map[area_index].w;
+            diagonal_b = map.world_map[area_index].e;
+
+            diagonal_c = map.world_map[area_index].sw;
+            diagonal_d = map.world_map[area_index].se;
+
             new_area_index = &mut ((map.world_map[area_index]).s);
         }else if direction == 'n' {
+            diagonal_a = map.world_map[area_index].w;
+            diagonal_b = map.world_map[area_index].e;
+            
+            diagonal_c = map.world_map[area_index].nw;
+            diagonal_d = map.world_map[area_index].ne;
+            
             new_area_index = &mut ((map.world_map[area_index]).n);
         }   
     }
@@ -159,19 +199,49 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
 
         let mut rng = rand::thread_rng();
 
-        for i in 0..map.tiles.len() {
-            area.tiles.push(num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap());
-            map.tiles[i] = area.tiles[i];
+        let w = map.width;
+        let h = map.height;
+
+        let perlin = Perlin::new();
+
+        perlin.set_seed(rng.gen::<u32>());
+
+        let xseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
+        let yseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
+
+        for y in 0..h {
+            for x in 0..w {
+                let noise = perlin.get([xseed + x as f64 / w as f64, yseed + y as f64 / h as f64]);
+                let tile = num::FromPrimitive::from_u32((noise.abs() * (Tile::Size as i32 as f64)) as u32).unwrap();
+                area.tiles.push(tile);
+                map.tiles[x + y * w] = area.tiles[x + y * w];
+            }
         }
 
         //link the list backwards
         if direction == 'n' {
+            area.sw = diagonal_a;
+            area.se = diagonal_b;
+            area.w = diagonal_c;
+            area.e = diagonal_d;
             area.s = map.area_index;
         }else if direction == 'e' {
+            area.nw = diagonal_a;
+            area.sw = diagonal_b;
+            area.n = diagonal_c;
+            area.s = diagonal_d;
             area.w = map.area_index;
         }else if direction == 'w' {
+            area.ne = diagonal_a;
+            area.se = diagonal_b;
+            area.n = diagonal_c;
+            area.s = diagonal_d;
             area.e = map.area_index;
         }else if direction == 's' {
+            area.nw = diagonal_a;
+            area.ne = diagonal_b;
+            area.w = diagonal_c;
+            area.e = diagonal_d;
             area.n = map.area_index;
         }
 
@@ -199,10 +269,30 @@ fn generate_map(world: &mut World){
 
     let mut rng = rand::thread_rng();
 
+    let w = map.width;
+    let h = map.height;
+
+    let perlin = Perlin::new();
+
+    perlin.set_seed(rng.gen::<u32>());
+
+    let xseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
+    let yseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
+
+    for y in 0..h {
+        for x in 0..w {
+            let noise = perlin.get([xseed + x as f64 / w as f64, yseed + y as f64 / h as f64]);
+            let tile = num::FromPrimitive::from_u32((noise.abs() * (Tile::Size as i32 as f64)) as u32).unwrap();
+            area.tiles.push(tile);
+            map.tiles[x + y * w] = area.tiles[x + y * w];
+        }
+    }
+
+    /*
     for i in 0..(map.width * map.height) {
         area.tiles.push(num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap());
         map.tiles[i] = area.tiles[i];
-    }
+    }*/
 
     map.world_map.push(area);
 }

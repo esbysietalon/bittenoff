@@ -1,6 +1,9 @@
 extern crate amethyst;
 #[macro_use]
 extern crate num_derive;
+
+extern crate noise;
+
 mod game_state;
 mod systems;
 mod components;

@@ -41,29 +41,11 @@ pub const TICK_RATE: f32 = 0.5;
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
-    GrassFlower1 = 0, 
-    GrassFlower2,
-    GrassVerdant1,
-    GrassVerdant2,
-    GrassFresh1,
-    GrassFresh2,
-    Grass1,
-    Grass2,
-    Grass3,
-    Grass4,
-    Grass5,
-    GrassLight1,
-    GrassLight2,
-    GrassDry1,
-    GrassDry2,
-    DryGrassy1,
-    DryGrassy2,
-    DryGrassy3,
-    DryStubble1,
-    DryStubble2,
-    DrySandy1,
-    DrySandy2,
-    DrySandy3,
+    Rocky = 0,
+    RockySmall,
+    Plain,
+    Grassy,
+    GrassyHeavy,
     Size
 }
 

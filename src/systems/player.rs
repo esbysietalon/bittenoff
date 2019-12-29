@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, Map, Area, load_map, regenerate_map};
+use crate::game_state::{Config, Map, Area, load_map, regenerate_map, update_world_seed};
 
 pub struct MapSystem;
 
@@ -58,6 +58,10 @@ impl<'s> System<'s> for MapSystem{
         }
         if change_map {
             println!("change map!");
+
+            {
+                update_world_seed(&mut map, dir);
+            }
 
             let mut load_tuple = (None, 0);
 

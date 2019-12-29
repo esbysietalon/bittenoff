@@ -79,6 +79,7 @@ impl Area{
 pub struct Map{
     pub width: usize, 
     pub height: usize,
+    pub world_seed: (f64, f64),
     pub tiles: Vec<Tile>,
     pub entities: Vec<Id>,
     pub world_map: Vec<Area>,
@@ -90,7 +91,8 @@ impl Map {
     pub fn new(width: usize, height: usize) -> Map {
         Map {
             width,
-            height,
+            height, 
+            world_seed: (0.0, 0.0),
             tiles: vec![Tile::Size; width * height],
             entities: vec![Id::nil(); ENTITY_LIM],
             world_map: Vec::new(),
@@ -120,13 +122,31 @@ pub struct PlayState{
     //sprite_sheet_handle: Option<Handle<SpriteSheet>>,
 }
 
+pub fn update_world_seed(map: &mut Map, dir: char){
+    match dir {
+        'n' => {
+            map.world_seed.1 += 1.0;
+        }
+        'w' => {
+            map.world_seed.0 -= 1.0;
+        }
+        'e' => {
+            map.world_seed.0 += 1.0;
+        }
+        's' => {
+            map.world_seed.1 -= 1.0;
+        }
+        _ => {}
+    }
+}
+
 pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
     println!("loading area to map from {}", to_load.1);
 
     let mut area_pointer = &(Area::new());
     match to_load.0 {
-        Some(A) => {
-            map.world_map.push(A);
+        Some(a) => {
+            map.world_map.push(a);
             area_pointer = &map.world_map[to_load.1];
         }
         None => {
@@ -197,17 +217,17 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
 
         let mut area = Area::new();
 
-        let mut rng = rand::thread_rng();
+        //let mut rng = rand::thread_rng();
 
         let w = map.width;
         let h = map.height;
 
         let perlin = Perlin::new();
 
-        perlin.set_seed(rng.gen::<u32>());
+        //perlin.set_seed(rng.gen::<u32>());
 
-        let xseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
-        let yseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
+        let xseed = map.world_seed.0;
+        let yseed = map.world_seed.1;
 
         for y in 0..h {
             for x in 0..w {
@@ -267,17 +287,17 @@ fn generate_map(world: &mut World){
 
     let mut area = Area::new();
 
-    let mut rng = rand::thread_rng();
+    //let mut rng = rand::thread_rng();
 
     let w = map.width;
     let h = map.height;
 
     let perlin = Perlin::new();
 
-    perlin.set_seed(rng.gen::<u32>());
+    //perlin.set_seed(rng.gen::<u32>());
 
-    let xseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
-    let yseed = rng.gen::<f64>() + rng.gen::<u32>() as f64;
+    let xseed = map.world_seed.0;
+    let yseed = map.world_seed.1;
 
     for y in 0..h {
         for x in 0..w {
@@ -446,9 +466,12 @@ impl SimpleState for LoadingState {
             let loaded = self.load_thread.take().unwrap().join().expect("Error encountered while joining thread");
             
             //NOTICE Map is defined here
-            let map = Map::new(loaded.stage_width as usize / TILE_SIZE + 1, loaded.stage_height as usize / TILE_SIZE + 1);
+            let mut map = Map::new(loaded.stage_width as usize / TILE_SIZE + 1, loaded.stage_height as usize / TILE_SIZE + 1);
             
-            
+            //seeding map world seed
+            let mut rng = rand::thread_rng();
+            map.world_seed = (rng.gen::<f64>(), rng.gen::<f64>());
+
             println!("Loaded config: {:?}", loaded);
             data.world.insert(loaded);
             data.world.insert(map);

@@ -39,10 +39,31 @@ pub const ENTITY_LIM: usize = 100;
 
 pub const TICK_RATE: f32 = 0.5;
 
-#[derive(Clone, Copy, FromPrimitive)]
+#[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
-    Grass_1 = 0, 
-    Grass_2,
+    GrassFlower1 = 0, 
+    GrassFlower2,
+    GrassVerdant1,
+    GrassVerdant2,
+    GrassFresh1,
+    GrassFresh2,
+    Grass1,
+    Grass2,
+    Grass3,
+    Grass4,
+    Grass5,
+    GrassLight1,
+    GrassLight2,
+    GrassDry1,
+    GrassDry2,
+    DryGrassy1,
+    DryGrassy2,
+    DryGrassy3,
+    DryStubble1,
+    DryStubble2,
+    DrySandy1,
+    DrySandy2,
+    DrySandy3,
     Size
 }
 
@@ -303,6 +324,7 @@ fn generate_map(world: &mut World){
         for x in 0..w {
             let noise = perlin.get([xseed + x as f64 / w as f64, yseed + y as f64 / h as f64]);
             let tile = num::FromPrimitive::from_u32((noise.abs() * (Tile::Size as i32 as f64)) as u32).unwrap();
+            println!("tile {:?}", tile);
             area.tiles.push(tile);
             map.tiles[x + y * w] = area.tiles[x + y * w];
         }

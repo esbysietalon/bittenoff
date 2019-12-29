@@ -17,7 +17,7 @@ use std::sync::atomic::Ordering;
 use serde::Deserialize;
 use ron::de::from_str;
 
-use noise::{Seedable, NoiseFn, Perlin};
+use noise::{Seedable, NoiseFn, Perlin, Billow};
 
 use amethyst::ecs::prelude::Entity;
 use amethyst::{
@@ -37,15 +37,19 @@ pub const PERSON_NUM: u32 = 15;
 pub const TILE_SIZE: usize = 16;
 pub const ENTITY_LIM: usize = 100;
 
+pub const ZOOM_FACTOR: f64 = 0.5;
+pub const ADJUSTMENT_ZOOM_FACTOR: f64 = 0.25;
+pub const NOISE_DISPLACEMENT: f64 = 0.5;
+
 pub const TICK_RATE: f32 = 0.5;
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
-    Rocky = 0,
-    RockySmall,
-    Plain,
+    GrassyHeavy = 0,
     Grassy,
-    GrassyHeavy,
+    Plain,
+    RockyLight,
+    Rocky,
     Size
 }
 
@@ -82,7 +86,7 @@ impl Area{
 pub struct Map{
     pub width: usize, 
     pub height: usize,
-    pub world_seed: (f64, f64),
+    pub world_seed: (f64, f64, f64, f64),
     pub tiles: Vec<Tile>,
     pub entities: Vec<Id>,
     pub world_map: Vec<Area>,
@@ -95,7 +99,7 @@ impl Map {
         Map {
             width,
             height, 
-            world_seed: (0.0, 0.0),
+            world_seed: (0.0, 0.0, 0.0, 0.0),
             tiles: vec![Tile::Size; width * height],
             entities: vec![Id::nil(); ENTITY_LIM],
             world_map: Vec::new(),
@@ -128,16 +132,20 @@ pub struct PlayState{
 pub fn update_world_seed(map: &mut Map, dir: char){
     match dir {
         'n' => {
-            map.world_seed.1 += 1.0;
+            map.world_seed.1 += 1.0 / ZOOM_FACTOR;
+            map.world_seed.3 += 1.0 / ADJUSTMENT_ZOOM_FACTOR;
         }
         'w' => {
-            map.world_seed.0 -= 1.0;
+            map.world_seed.0 -= 1.0 / ZOOM_FACTOR;
+            map.world_seed.2 -= 1.0 / ADJUSTMENT_ZOOM_FACTOR;
         }
         'e' => {
-            map.world_seed.0 += 1.0;
+            map.world_seed.0 += 1.0 / ZOOM_FACTOR;
+            map.world_seed.2 += 1.0 / ADJUSTMENT_ZOOM_FACTOR;
         }
         's' => {
-            map.world_seed.1 -= 1.0;
+            map.world_seed.1 -= 1.0 / ZOOM_FACTOR;
+            map.world_seed.3 -= 1.0 / ADJUSTMENT_ZOOM_FACTOR;
         }
         _ => {}
     }
@@ -220,22 +228,36 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
 
         let mut area = Area::new();
 
-        //let mut rng = rand::thread_rng();
+        let mut rng = rand::thread_rng();
 
         let w = map.width;
         let h = map.height;
 
         let perlin = Perlin::new();
+        let billow = Billow::new();
 
         //perlin.set_seed(rng.gen::<u32>());
 
         let xseed = map.world_seed.0;
         let yseed = map.world_seed.1;
+        let aseed = map.world_seed.2;
+        let bseed = map.world_seed.3;
+
 
         for y in 0..h {
             for x in 0..w {
-                let noise = perlin.get([xseed + x as f64 / w as f64, yseed + y as f64 / h as f64]);
-                let tile = num::FromPrimitive::from_u32((noise.abs() * (Tile::Size as i32 as f64)) as u32).unwrap();
+                let noise = perlin.get([xseed + x as f64 / w as f64 / ZOOM_FACTOR, yseed + y as f64 / h as f64 / ZOOM_FACTOR]);
+                let adjustment = billow.get([aseed + x as f64 / w as f64 / ADJUSTMENT_ZOOM_FACTOR, bseed + y as f64 / h as f64 / ADJUSTMENT_ZOOM_FACTOR]) * NOISE_DISPLACEMENT;
+                //(rng.gen::<f64>() - rng.gen::<f64>()) * NOISE_DISPLACEMENT;//
+                let mut tilefloat = noise_ease(noise + adjustment);
+                
+                if tilefloat >= 1.0 {
+                    tilefloat = 0.99;
+                }else if tilefloat < 0.0 {
+                    tilefloat = 0.0;
+                }
+
+                let tile = num::FromPrimitive::from_u32((tilefloat * (Tile::Size as i32 as f64)) as u32).unwrap();
                 area.tiles.push(tile);
                 map.tiles[x + y * w] = area.tiles[x + y * w];
             }
@@ -285,28 +307,52 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
 }
 
 
+fn noise_ease(raw: f64) -> f64{
+    let abs = raw.abs();
+
+    abs
+}
+
 fn generate_map(world: &mut World){
     let mut map = world.write_resource::<Map>();
 
     let mut area = Area::new();
 
-    //let mut rng = rand::thread_rng();
+    let mut rng = rand::thread_rng();
 
     let w = map.width;
     let h = map.height;
 
     let perlin = Perlin::new();
 
+    let billow = Billow::new();
+
     //perlin.set_seed(rng.gen::<u32>());
 
     let xseed = map.world_seed.0;
     let yseed = map.world_seed.1;
+    let aseed = map.world_seed.2;
+    let bseed = map.world_seed.3;
 
     for y in 0..h {
         for x in 0..w {
-            let noise = perlin.get([xseed + x as f64 / w as f64, yseed + y as f64 / h as f64]);
-            let tile = num::FromPrimitive::from_u32((noise.abs() * (Tile::Size as i32 as f64)) as u32).unwrap();
-            println!("tile {:?}", tile);
+            let noise = perlin.get([xseed + x as f64 / w as f64 / ZOOM_FACTOR, yseed + y as f64 / h as f64 / ZOOM_FACTOR]);
+            let adjustment = billow.get([aseed + x as f64 / w as f64 / ADJUSTMENT_ZOOM_FACTOR, bseed + y as f64 / h as f64 / ADJUSTMENT_ZOOM_FACTOR]) * NOISE_DISPLACEMENT;//(rng.gen::<f64>() - rng.gen::<f64>()) * NOISE_DISPLACEMENT;
+
+            //println!("adjustment {}", adjustment);
+
+            let mut tilefloat = noise_ease(noise + adjustment);
+            
+            if tilefloat >= 1.0 {
+                tilefloat = 0.99;
+            }else if tilefloat < 0.0 {
+                tilefloat = 0.0;
+            }
+
+            //println!("tilefloat {}", tilefloat);
+
+            let tile = num::FromPrimitive::from_u32((tilefloat * (Tile::Size as i32 as f64)) as u32).unwrap();
+            //println!("tile {:?}", tile);
             area.tiles.push(tile);
             map.tiles[x + y * w] = area.tiles[x + y * w];
         }
@@ -474,7 +520,7 @@ impl SimpleState for LoadingState {
             
             //seeding map world seed
             let mut rng = rand::thread_rng();
-            map.world_seed = (rng.gen::<f64>(), rng.gen::<f64>());
+            map.world_seed = (rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>());
 
             println!("Loaded config: {:?}", loaded);
             data.world.insert(loaded);

@@ -15,8 +15,6 @@ use std::fs::File;
 use serde::Deserialize;
 use ron::de::from_str;
 
-
-
 use amethyst::{
     Logger,
     GameDataBuilder,
@@ -29,7 +27,10 @@ use amethyst::{
         RenderingBundle,
     },
     utils::application_root_dir,
+    window::{DisplayConfig, MonitorIdent, MonitorsAccess},
 };
+
+use amethyst::winit::{Event, EventsLoop, Window, WindowEvent, ControlFlow};
 
 fn main() -> amethyst::Result<()> {
     let app_root = application_root_dir()?;
@@ -37,7 +38,15 @@ fn main() -> amethyst::Result<()> {
     let display_config_path = app_root.join("config").join("display.ron");
     let game_config_path = app_root.join("config").join("globals.ron");
 
+    let contents = fs::read_to_string(display_config_path.to_str().unwrap())
+        .expect("Error reading display config file");
+    let mut display_config: DisplayConfig = from_str(&contents)
+        .expect("Error loading display config file");
     
+    let mut events_loop = EventsLoop::new();
+    let window = Window::new(&events_loop).unwrap();
+
+    display_config.fullscreen = Some(MonitorIdent::from_primary(&window));
 
     Logger::from_config(Default::default())
         .level_for("amethyst_rendy", amethyst::LogLevelFilter::Warn)

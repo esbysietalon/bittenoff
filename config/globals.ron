@@ -1,5 +1,5 @@
 (
-  stage_height: 900.0,
-  stage_width: 1480.0,
+  stage_height: 600.0,
+  stage_width: 960.0,
   spritesheet_name: "spritesheet",
 )

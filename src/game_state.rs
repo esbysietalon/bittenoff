@@ -28,11 +28,12 @@ use amethyst::{
     renderer::{Camera, ImageFormat, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
 };
 
+
 use crate::components::Id;
 
 pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
-pub const PERSON_NUM: u32 = 15;
+pub const PERSON_NUM: u32 = 25;
 
 pub const TILE_SIZE: usize = 16;
 pub const ENTITY_LIM: usize = 100;
@@ -87,6 +88,7 @@ pub struct Map{
     pub width: usize, 
     pub height: usize,
     pub world_seed: (f64, f64, f64, f64),
+    pub location: (i32, i32),
     pub tiles: Vec<Tile>,
     pub entities: Vec<Id>,
     pub world_map: Vec<Area>,
@@ -100,6 +102,7 @@ impl Map {
             width,
             height, 
             world_seed: (0.0, 0.0, 0.0, 0.0),
+            location: (0, 0),
             tiles: vec![Tile::Size; width * height],
             entities: vec![Id::nil(); ENTITY_LIM],
             world_map: Vec::new(),
@@ -134,21 +137,26 @@ pub fn update_world_seed(map: &mut Map, dir: char){
         'n' => {
             map.world_seed.1 += 1.0 / ZOOM_FACTOR;
             map.world_seed.3 += 1.0 / ADJUSTMENT_ZOOM_FACTOR;
+            map.location.1 += 1;
         }
         'w' => {
             map.world_seed.0 -= 1.0 / ZOOM_FACTOR;
             map.world_seed.2 -= 1.0 / ADJUSTMENT_ZOOM_FACTOR;
+            map.location.0 -= 1;
         }
         'e' => {
             map.world_seed.0 += 1.0 / ZOOM_FACTOR;
             map.world_seed.2 += 1.0 / ADJUSTMENT_ZOOM_FACTOR;
+            map.location.0 += 1;
         }
         's' => {
             map.world_seed.1 -= 1.0 / ZOOM_FACTOR;
             map.world_seed.3 -= 1.0 / ADJUSTMENT_ZOOM_FACTOR;
+            map.location.1 -= 1;
         }
         _ => {}
     }
+    println!("area is {:?}", map.location);
 }
 
 pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
@@ -424,7 +432,7 @@ fn initialise_player(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
     let s_w = world.read_resource::<Config>().stage_width;
     let s_h = world.read_resource::<Config>().stage_height;
 
-    local_transform.set_translation_xyz(s_w / 2.0, s_h / 2.0, 0.0);
+    local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
     let sprite_render = SpriteRender {
         sprite_sheet: sprite_sheet,
         sprite_number: 0,
@@ -438,7 +446,7 @@ fn initialise_player(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             height: PLAYER_HEIGHT,
         })
         .with(components::Id::new())
-        .with(components::Physical::new(components::Physical::into_tile_position((local_transform.translation().x, local_transform.translation().y))))
+        .with(components::Physical::new((s_w / 2.0, s_h / 2.0), (0, 0)))
         .with(local_transform)
         .build();
 }
@@ -449,7 +457,9 @@ fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
         let s_w = world.read_resource::<Config>().stage_width;
         let s_h = world.read_resource::<Config>().stage_height;
 
-        local_transform.set_translation_xyz(s_w / 2.0, s_h / 2.0, 0.0);
+        let mut rng = rand::thread_rng();
+
+        local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
         let sprite_render = SpriteRender {
             sprite_sheet: sprite_sheet.clone(),
             sprite_number: 1,
@@ -459,7 +469,7 @@ fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             .create_entity()
             .with(sprite_render)
             .with(components::Id::new())
-            .with(components::Physical::new(components::Physical::into_tile_position((local_transform.translation().x, local_transform.translation().y))))
+            .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(-1, 2), rng.gen_range(-1, 2))))
             .with(local_transform)
             .build();
     }
@@ -535,11 +545,12 @@ impl SimpleState for LoadingState {
     
             initialise_tiles(*world, self.sprite_sheet_handle.clone().unwrap());
             
-            self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "spritesheet"));
+            self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "player"));
             
             initialise_player(*world, self.sprite_sheet_handle.clone().unwrap());
     
-            //initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
+            initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
+            
             initialise_camera(*world);
 
             data.world

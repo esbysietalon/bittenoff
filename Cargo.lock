@@ -519,6 +519,7 @@ dependencies = [
  "amethyst 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "angular 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fps_counter 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "monitor 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "noise 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-derive 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1728,6 +1729,11 @@ dependencies = [
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "monitor"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "mopa"
@@ -3721,6 +3727,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum minterpolate 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d51167254a2f9cbf683aa415fe275ab4e11350c58b7f0a2d7f6e0f10b3594ee"
 "checksum mio 0.6.19 (registry+https://github.com/rust-lang/crates.io-index)" = "83f51996a3ed004ef184e16818edc51fadffe8e7ca68be67f9dee67d84d0ff23"
 "checksum miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1f2f3b1cf331de6896aabf6e9d55dca90356cc9960cca7eaaf408a355ae919"
+"checksum monitor 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "06508b4391c92efc13a8600bccbe29e04ceeefe65f021182f573e52e0f868931"
 "checksum mopa 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a785740271256c230f57462d3b83e52f998433a7062fc18f96d5999474a9f915"
 "checksum nalgebra 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aaa9fddbc34c8c35dd2108515587b8ce0cab396f17977b8c738568e4edb521a2"
 "checksum net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)" = "42550d9fb7b6684a6d404d9fa7250c2eb2646df731d1c06afc06dcee9e1bcf88"

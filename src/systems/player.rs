@@ -12,12 +12,12 @@ pub struct MapSystem;
 impl<'s> System<'s> for MapSystem{
     type SystemData = (
         ReadStorage<'s, Player>,
-        WriteStorage<'s, Transform>,
+        WriteStorage<'s, Physical>,
         Read<'s, Config>,
         Write<'s, Map>,
     );
 
-    fn run(&mut self, (players, mut transforms, config, mut map): Self::SystemData) {
+    fn run(&mut self, (players, mut physicals, config, mut map): Self::SystemData) {
         let mut change_map = false;
         //let mut area_pointer = &mut Area::new();
         let mut area_index = map.area_index;
@@ -29,25 +29,28 @@ impl<'s> System<'s> for MapSystem{
 
         let mut dir = ' ';
 
-        for (player, transform) in (&players, &mut transforms).join(){
-            let x = transform.translation().x;
-            let y = transform.translation().y;
+        for (player, phys) in (&players, &mut physicals).join(){
+            let (x, y) = phys.get_real_position();
             
 
             if x > config.stage_width as f32 {
-                transform.set_translation_x(0.0);
+                phys.set_x(0.0);
+                phys.mut_area_x(1);
                 dir = 'e';
                 change_map = true;
             }else if x < 0.0 {
-                transform.set_translation_x(config.stage_width as f32);
+                phys.set_x(config.stage_width as f32);
+                phys.mut_area_x(-1);
                 dir = 'w';
                 change_map = true;
             }else if y > config.stage_height as f32 {
-                transform.set_translation_y(0.0);
+                phys.set_y(0.0);
+                phys.mut_area_y(1);
                 dir = 'n';
                 change_map = true;
             }else if y < 0.0 {
-                transform.set_translation_y(config.stage_height as f32);
+                phys.set_y(config.stage_height as f32);
+                phys.mut_area_y(-1);
                 dir = 's';
                 change_map = true;
             }
@@ -79,23 +82,23 @@ pub struct MoveSystem;
 impl<'s> System<'s> for MoveSystem{
     type SystemData = (
         ReadStorage<'s, Player>,
-        WriteStorage<'s, Transform>,
+        WriteStorage<'s, Physical>,
         Read<'s, Config>,
         Read<'s, InputHandler<StringBindings>>,
         Read<'s, Time>
     );
 
-    fn run(&mut self, (players, mut transforms, config, input, time): Self::SystemData) {
+    fn run(&mut self, (players, mut physicals, config, input, time): Self::SystemData) {
         
 
-        for (player, transform) in (&players, &mut transforms).join(){
+        for (player, phys) in (&players, &mut physicals).join(){
             let movement = input.axis_value("horizontal_mv");
             //println!("running, since {}", time.delta_seconds());
             if let Some(mv_amount) = movement {
                 let scaled_amount = 100.0 * time.delta_seconds() * mv_amount as f32;
-                let x = transform.translation().x;
+                let x = phys.get_real_position().0;
                 //println!("updating x by {}", scaled_amount);
-                transform.set_translation_x(
+                phys.set_x(
                     (x + scaled_amount)
                         //.min(config.stage_width as f32 - player.width as f32 * 0.5)
                         //.max(player.width as f32 * 0.5),
@@ -106,9 +109,9 @@ impl<'s> System<'s> for MoveSystem{
             let movement = input.axis_value("vertical_mv");
             if let Some(mv_amount) = movement {
                 let scaled_amount = 100.0 * time.delta_seconds() * mv_amount as f32;
-                let y = transform.translation().y;
+                let y = phys.get_real_position().1;
                 //println!("updating x by {}", scaled_amount);
-                transform.set_translation_y(
+                phys.set_y(
                     (y + scaled_amount)
                         //.min(config.stage_height as f32 - player.height as f32 * 0.5)
                         //.max(player.height as f32 * 0.5),

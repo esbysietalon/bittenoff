@@ -32,6 +32,8 @@ use amethyst::{
 
 use amethyst::winit::{Event, EventsLoop, Window, WindowEvent, ControlFlow};
 
+use crate::game_state::Config;
+
 fn main() -> amethyst::Result<()> {
     let app_root = application_root_dir()?;
     let binding_path = app_root.join("config").join("bindings.ron");
@@ -42,14 +44,20 @@ fn main() -> amethyst::Result<()> {
         .expect("Error reading display config file");
     let mut display_config: DisplayConfig = from_str(&contents)
         .expect("Error loading display config file");
+
+    let contents = fs::read_to_string(game_config_path.to_str().unwrap())
+        .expect("Error reading game config file");
+    let game_config: Config = from_str(&contents)
+        .expect("Error loading game config file");
     
-    let mut events_loop = EventsLoop::new();
-    let window = Window::new(&events_loop).unwrap();
+    if game_config.fullscreen {
+        let events_loop = EventsLoop::new();
+        let window = Window::new(&events_loop).unwrap();
 
-    window.hide();
+        window.hide();
 
-    display_config.fullscreen = Some(MonitorIdent::from_primary(&window));
-
+        display_config.fullscreen = Some(MonitorIdent::from_primary(&window));
+    }
     Logger::from_config(Default::default())
         .level_for("amethyst_rendy", amethyst::LogLevelFilter::Warn)
         .start();

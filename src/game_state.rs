@@ -33,16 +33,14 @@ use crate::components::Id;
 
 pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
-pub const PERSON_NUM: u32 = 25;
+pub const PERSON_NUM: u32 = 5;
 
 pub const TILE_SIZE: usize = 16;
-pub const ENTITY_LIM: usize = 100;
+pub const ENTITY_LIM: usize = 15;
 
 pub const ZOOM_FACTOR: f64 = 0.5;
 pub const ADJUSTMENT_ZOOM_FACTOR: f64 = 0.25;
 pub const NOISE_DISPLACEMENT: f64 = 0.5;
-
-pub const TICK_RATE: f32 = 0.5;
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
@@ -54,9 +52,44 @@ pub enum Tile {
     Size
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct TileBlock {
+    pub tile: Tile,
+    pub passable: bool,
+}
+
+impl TileBlock {
+    pub fn new(tile: Tile, passable: bool) -> TileBlock {
+        TileBlock {
+            tile,
+            passable,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Anchor{
+    pub pos: (usize, usize),
+    pub succ: Vec<(usize)>,
+}
+
+impl Anchor {
+    pub fn new(x: usize, y: usize) -> Anchor {
+        Anchor {
+            pos: (x, y),
+            succ: Vec::new(),
+        }
+    }
+    pub fn real_pos(&self) -> (f32, f32) {
+        let (x, y) = self.pos;
+        (x as f32, y as f32)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct Area{
-    pub tiles: Vec<Tile>,
+    pub tiles: Vec<TileBlock>,
+    pub anchor_points: Vec<Anchor>,
     pub n: usize,
     pub e: usize,
     pub w: usize,
@@ -71,6 +104,7 @@ impl Area{
     pub fn new() -> Area{
         Area {
             tiles: Vec::new(),
+            anchor_points: Vec::new(),
             n: usize::max_value(),
             e: usize::max_value(),
             w: usize::max_value(),
@@ -89,7 +123,8 @@ pub struct Map{
     pub height: usize,
     pub world_seed: (f64, f64, f64, f64),
     pub location: (i32, i32),
-    pub tiles: Vec<Tile>,
+    pub tiles: Vec<TileBlock>,
+    pub anchor_points: Vec<Anchor>,
     pub entities: Vec<Id>,
     pub world_map: Vec<Area>,
     pub area_index: usize,
@@ -103,7 +138,8 @@ impl Map {
             height, 
             world_seed: (0.0, 0.0, 0.0, 0.0),
             location: (0, 0),
-            tiles: vec![Tile::Size; width * height],
+            tiles: vec![TileBlock::new(Tile::Size, true); width * height],
+            anchor_points: Vec::new(),
             entities: vec![Id::nil(); ENTITY_LIM],
             world_map: Vec::new(),
             area_index: 0,
@@ -117,6 +153,7 @@ pub struct Config{
     pub stage_height: f32,
     pub stage_width: f32,
     pub spritesheet_name: String,
+    pub fullscreen: bool,
 }
 
 #[derive(Default)]
@@ -154,6 +191,7 @@ pub fn update_world_seed(map: &mut Map, dir: char){
             map.world_seed.3 -= 1.0 / ADJUSTMENT_ZOOM_FACTOR;
             map.location.1 -= 1;
         }
+
         _ => {}
     }
     println!("area is {:?}", map.location);
@@ -228,7 +266,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
         }   
     }
     
-    println!("area lookup is {} (throwaway value is {})", *new_area_index, usize::max_value());
+    println!("area lookup is {}", *new_area_index);
 
 
     if *new_area_index == usize::max_value() {
@@ -240,6 +278,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
 
         let w = map.width;
         let h = map.height;
+        
 
         let perlin = Perlin::new();
         let billow = Billow::new();
@@ -266,8 +305,42 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                 }
 
                 let tile = num::FromPrimitive::from_u32((tilefloat * (Tile::Size as i32 as f64)) as u32).unwrap();
-                area.tiles.push(tile);
+                area.tiles.push(TileBlock::new(tile, true));
                 map.tiles[x + y * w] = area.tiles[x + y * w];
+            }
+        }
+
+        for ty in 0..h {
+            for tx in 0..w {
+                let mut anchor = Anchor::new(tx, ty);
+                for y in -1..2 {
+                    let py = anchor.pos.1 as i32 + y;
+                    if py < 0 {
+                        continue;
+                    }
+                    let ny = py as usize;
+                    if ny >= w {
+                        break;
+                    }
+                    for x in -1..2 {
+                        if x == 0 && y == 0 {
+                            continue;
+                        }
+                        let px = anchor.pos.0 as i32 + x;
+                        if px < 0 {
+                            continue;
+                        }
+                        let nx = px as usize;
+                        if nx >= h {
+                            break;
+                        }
+                        let index = nx + ny * w;
+                        if map.tiles[index].passable {
+                            anchor.succ.push(nx + ny * w);
+                        }
+                    }
+                }
+                area.anchor_points.push(anchor);
             }
         }
 
@@ -361,7 +434,7 @@ fn generate_map(world: &mut World){
 
             let tile = num::FromPrimitive::from_u32((tilefloat * (Tile::Size as i32 as f64)) as u32).unwrap();
             //println!("tile {:?}", tile);
-            area.tiles.push(tile);
+            area.tiles.push(TileBlock::new(tile, true));
             map.tiles[x + y * w] = area.tiles[x + y * w];
         }
     }
@@ -394,7 +467,7 @@ fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
         for x in 0..tile_num_w {
             let mut local_transform = Transform::default();
 
-            let tile = tiles[x + y * tile_num_w];
+            let tile = tiles[x + y * tile_num_w].tile;
             
             local_transform.set_translation_xyz((x * TILE_SIZE) as f32, (y * TILE_SIZE) as f32, 0.0);
             let sprite_render = SpriteRender {
@@ -469,7 +542,8 @@ fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             .create_entity()
             .with(sprite_render)
             .with(components::Id::new())
-            .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(-1, 2), rng.gen_range(-1, 2))))
+            .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(0, 1), rng.gen_range(0, 1))))
+            .with(components::Mover::new(100.0))
             .with(local_transform)
             .build();
     }

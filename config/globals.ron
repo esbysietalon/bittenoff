@@ -2,4 +2,5 @@
   stage_height: 600.0,
   stage_width: 960.0,
   spritesheet_name: "spritesheet",
+  fullscreen: false,
 )

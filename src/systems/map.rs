@@ -18,7 +18,7 @@ impl<'s> System<'s> for MapSystem{
     fn run(&mut self, (mut map, mut tiles, mut sprite_renders): Self::SystemData) {
         if map.rerolled {
             for (tile, sprite_render) in (&mut tiles, &mut sprite_renders).join(){
-                sprite_render.sprite_number = map.tiles[tile.index()] as usize;
+                sprite_render.sprite_number = map.tiles[tile.index()].tile as usize;
             }
             map.rerolled = false;
         }

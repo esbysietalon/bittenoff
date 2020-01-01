@@ -13,14 +13,22 @@ impl Counter{
         }
     }    
 
-    pub fn tick(&mut self, added_time: f32){
+    pub fn tick(&mut self, added_time: f32, add: bool) -> bool{
         self.time += added_time;
-        self.fps += 1;
+        if add {
+            self.fps += 1;
+        }
         if self.time > 1.0 {
             println!("FPS: {}", self.fps);
             self.time = 0.0;
             self.fps = 0;
+            true
+        }else{
+            false
         }
+    }
+    pub fn frames(&self) -> u32 {
+        self.fps
     }
 }
 

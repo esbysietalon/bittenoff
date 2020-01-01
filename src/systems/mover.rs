@@ -33,7 +33,7 @@ impl<'s> System<'s> for MoveSystem{
 
                 }
                 None => {
-                    println!("change goal, no moves detected");
+                    //println!("change goal, no moves detected");
                     mover.pop_goal();
                 }
             }
@@ -57,13 +57,19 @@ impl<'s> System<'s> for RudderSystem{
                 None => {}
                 Some(goal) => {
                     let (x, y) = phys.get_tile_position();
-                    let origin = map.anchor_points[x + y * map.width];
-                    let path = astar(&origin, |p| {
-                        (*p).succ.into_iter().map(|val| map.anchor_points[val]).collect()
-                    }, |p| {
-                        (((*p).pos.0 as i32 - goal.pos.0 as i32).abs() + ((*p).pos.1 as i32 - goal.pos.1 as i32).abs()) / 3
-                    },
-                   |p| *p == goal);
+                    let origin = map.anchor_points[x + y * map.width].clone();
+                    let path = astar(&origin, |p| {let successors: Vec<(Anchor, usize)> = (*p).succ.to_vec().into_iter().map(|val| (map.anchor_points[val].clone(), 1)).collect(); successors},
+                    |p| (((*p).pos.0 as i32 - goal.pos.0 as i32).abs() + ((*p).pos.1 as i32 - goal.pos.1 as i32).abs()) as usize / 3,
+                    |p| *p == goal);
+                    //println!("path calculated!");
+                    match path {
+                        Some((v, c)) => {
+                            //println!("path cost is {}", c);
+                        }
+                        None => {
+                            println!("no path found!");
+                        }
+                    }
                 }
             }
         }
@@ -93,8 +99,9 @@ impl<'s> System<'s> for SimpleIdle{
                     let gx = rng.gen_range(0, map.width);
                     let gy = rng.gen_range(0, map.height);
 
-                    mover.add_goal(Goal::new(1, map.anchor_points[gx + gy * map.width]));
-                    
+                    if gx + gy * map.width < map.anchor_points.len() {
+                        mover.add_goal(Goal::new(1, map.anchor_points[gx + gy * map.width].clone()));
+                    }
                 },
                 _ => {},
             }

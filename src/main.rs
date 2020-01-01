@@ -32,6 +32,7 @@ use amethyst::{
 
 use amethyst::winit::{Event, EventsLoop, Window, WindowEvent, ControlFlow};
 
+
 use crate::game_state::Config;
 
 fn main() -> amethyst::Result<()> {

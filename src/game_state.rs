@@ -67,7 +67,7 @@ impl TileBlock {
     }
 }
 
-#[derive(Eq, Debug)]
+#[derive(Eq, Debug, Hash)]
 pub struct Anchor{
     pub pos: (usize, usize),
     pub succ: Vec<usize>,
@@ -171,6 +171,7 @@ pub struct Config{
     pub stage_width: f32,
     pub spritesheet_name: String,
     pub fullscreen: bool,
+    pub fps_limit: u32,
 }
 
 #[derive(Default)]
@@ -230,6 +231,7 @@ pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
 
     for i in 0..map.tiles.len() {
         map.tiles[i] = (*area_pointer).tiles[i];
+        map.anchor_points[i] = (*area_pointer).anchor_points[i].clone();
     }
 
     map.area_index = to_load.1;
@@ -336,7 +338,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                         continue;
                     }
                     let ny = py as usize;
-                    if ny >= w {
+                    if ny >= h {
                         break;
                     }
                     for x in -1..2 {
@@ -348,7 +350,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                             continue;
                         }
                         let nx = px as usize;
-                        if nx >= h {
+                        if nx >= w {
                             break;
                         }
                         let index = nx + ny * w;
@@ -456,6 +458,42 @@ fn generate_map(world: &mut World){
         }
     }
 
+
+    for ty in 0..h {
+        for tx in 0..w {
+            let mut anchor = Anchor::new(tx, ty);
+            for y in -1..2 {
+                let py = anchor.pos.1 as i32 + y;
+                if py < 0 {
+                    continue;
+                }
+                let ny = py as usize;
+                if ny >= h {
+                    break;
+                }
+                for x in -1..2 {
+                    if x == 0 && y == 0 {
+                        continue;
+                    }
+                    let px = anchor.pos.0 as i32 + x;
+                    if px < 0 {
+                        continue;
+                    }
+                    let nx = px as usize;
+                    if nx >= w {
+                        break;
+                    }
+                    let index = nx + ny * w;
+                    //println!("made it here to index {}", index);
+                    if map.tiles[index].passable {
+                        anchor.succ.push(nx + ny * w);
+                    }
+                }
+            }
+            map.anchor_points.push(anchor.clone());
+            area.anchor_points.push(anchor);           
+        }
+    }
     /*
     for i in 0..(map.width * map.height) {
         area.tiles.push(num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap());

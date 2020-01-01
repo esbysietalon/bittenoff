@@ -67,10 +67,10 @@ impl TileBlock {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Eq, Debug)]
 pub struct Anchor{
     pub pos: (usize, usize),
-    pub succ: Vec<(usize)>,
+    pub succ: Vec<usize>,
 }
 
 impl Anchor {
@@ -82,7 +82,24 @@ impl Anchor {
     }
     pub fn real_pos(&self) -> (f32, f32) {
         let (x, y) = self.pos;
-        (x as f32, y as f32)
+        let nx = TILE_SIZE / 2 + x * TILE_SIZE;
+        let ny = TILE_SIZE / 2 + y * TILE_SIZE;
+        (nx as f32, ny as f32)
+    }
+}
+
+impl Clone for Anchor {
+    fn clone(&self) -> Anchor {
+        Anchor {
+            pos: self.pos,
+            succ: self.succ.to_vec(),
+        }
+    }
+}
+
+impl PartialEq for Anchor {
+    fn eq(&self, other: &Self) -> bool {
+        self.pos == other.pos
     }
 }
 

@@ -18,7 +18,7 @@ impl Goal {
         }
     }
     pub fn pos(&self) -> (f32, f32) {
-        self.point.real_pos()
+        self.point.real_local()
     }
 
     pub fn cmp_pos(&self) -> (u32, u32) {
@@ -66,6 +66,9 @@ impl Mover{
     }
     pub fn is_step_vec_empty(&self) -> bool {
         self.step_vec.is_empty()
+    }
+    pub fn clear_step_vec(&mut self) {
+        self.step_vec.clear();
     }
     pub fn set_step_vec(&mut self, vec: Vec<Anchor>) {
         //println!("setting step vec to {:?}", vec);

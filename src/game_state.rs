@@ -33,7 +33,9 @@ use crate::components::Id;
 
 pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
-pub const PERSON_NUM: u32 = 5;
+pub const PERSON_NUM: u32 = 1;
+
+pub const DEFAULT_BASE_SPEED: f32 = 80.0;
 
 pub const TILE_SIZE: usize = 16;
 pub const ENTITY_LIM: usize = 15;
@@ -69,22 +71,38 @@ impl TileBlock {
 
 #[derive(Eq, Debug, Hash)]
 pub struct Anchor{
-    pub pos: (usize, usize),
+    pub pos: (usize, usize, i32, i32),
     pub succ: Vec<usize>,
 }
 
 impl Anchor {
-    pub fn new(x: usize, y: usize) -> Anchor {
+    pub fn new(x: usize, y: usize, lx: i32, ly: i32) -> Anchor {
         Anchor {
-            pos: (x, y),
+            pos: (x, y, lx, ly),
             succ: Vec::new(),
         }
     }
-    pub fn real_pos(&self) -> (f32, f32) {
-        let (x, y) = self.pos;
-        let nx = TILE_SIZE / 2 + x * TILE_SIZE;
-        let ny = TILE_SIZE / 2 + y * TILE_SIZE;
-        (nx as f32, ny as f32)
+    pub fn real_local(&self) -> (f32, f32) {
+        let (x, y, _, _) = self.pos;
+        let mut nx = (TILE_SIZE / 2 + x * TILE_SIZE) as f32;
+        if x == usize::max_value() {
+            nx = (-(TILE_SIZE as i32) / 2) as f32; 
+        }
+        let mut ny = (TILE_SIZE / 2 + y * TILE_SIZE) as f32;
+        if y == usize::max_value() {
+            ny = (-(TILE_SIZE as i32) / 2) as f32; 
+        }
+        (nx, ny)
+    }
+    pub fn local(&self) -> (usize, usize) {
+        (self.pos.0, self.pos.1)
+    }
+    pub fn area(&self) -> (i32, i32) {
+        (self.pos.2, self.pos.3)
+    }
+    pub fn set_area(&mut self, new_area: (i32, i32)) {
+        self.pos.2 = new_area.0;
+        self.pos.3 = new_area.1;
     }
 }
 
@@ -231,6 +249,8 @@ pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
 
     for i in 0..map.tiles.len() {
         map.tiles[i] = (*area_pointer).tiles[i];
+    }
+    for i in 0..map.anchor_points.len() {
         map.anchor_points[i] = (*area_pointer).anchor_points[i].clone();
     }
 
@@ -329,9 +349,34 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
             }
         }
 
+        //adding out of bounds anchor points
+        let west = Anchor::new(usize::max_value(), 0, map.location.0, map.location.1);
+        let east = Anchor::new(w, 0, map.location.0, map.location.1);
+        let north = Anchor::new(0, h, map.location.0, map.location.1);
+        let south = Anchor::new(0, usize::max_value(), map.location.0, map.location.1);
+
+        area.anchor_points.push(west);
+        area.anchor_points.push(east);
+        area.anchor_points.push(north);
+        area.anchor_points.push(south);
+
         for ty in 0..h {
             for tx in 0..w {
-                let mut anchor = Anchor::new(tx, ty);
+                let mut anchor = Anchor::new(tx, ty, map.location.0, map.location.1);
+                if tx == 0 {
+                    //add west to succ
+                    anchor.succ.push(0);
+                }else if tx == w - 1 {
+                    //add east to succ
+                    anchor.succ.push(1);
+                }
+                if ty == 0 {
+                    //add south to succ
+                    anchor.succ.push(3);
+                } else if ty == h - 1 {
+                    //add north to succ
+                    anchor.succ.push(2);
+                }
                 for y in -1..2 {
                     let py = anchor.pos.1 as i32 + y;
                     if py < 0 {
@@ -355,7 +400,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                         }
                         let index = nx + ny * w;
                         if map.tiles[index].passable {
-                            anchor.succ.push(nx + ny * w);
+                            anchor.succ.push(index + 4);
                         }
                     }
                 }
@@ -458,10 +503,38 @@ fn generate_map(world: &mut World){
         }
     }
 
+    //adding out of bounds anchor points
+    let west = Anchor::new(usize::max_value(), 0, map.location.0, map.location.1);
+    let east = Anchor::new(w, 0, map.location.0, map.location.1);
+    let north = Anchor::new(0, h, map.location.0, map.location.1);
+    let south = Anchor::new(0, usize::max_value(), map.location.0, map.location.1);
+
+    map.anchor_points.push(west.clone());
+    map.anchor_points.push(east.clone());
+    map.anchor_points.push(north.clone());
+    map.anchor_points.push(south.clone());
+    area.anchor_points.push(west);
+    area.anchor_points.push(east);
+    area.anchor_points.push(north);
+    area.anchor_points.push(south);
 
     for ty in 0..h {
         for tx in 0..w {
-            let mut anchor = Anchor::new(tx, ty);
+            let mut anchor = Anchor::new(tx, ty, map.location.0, map.location.1);
+            if tx == 0 {
+                //add west to succ
+                anchor.succ.push(0);
+            }else if tx == w - 1 {
+                //add east to succ
+                anchor.succ.push(1);
+            }
+            if ty == 0 {
+                //add south to succ
+                anchor.succ.push(3);
+            } else if ty == h - 1 {
+                //add north to succ
+                anchor.succ.push(2);
+            }
             for y in -1..2 {
                 let py = anchor.pos.1 as i32 + y;
                 if py < 0 {
@@ -486,7 +559,7 @@ fn generate_map(world: &mut World){
                     let index = nx + ny * w;
                     //println!("made it here to index {}", index);
                     if map.tiles[index].passable {
-                        anchor.succ.push(nx + ny * w);
+                        anchor.succ.push(index + 4);
                     }
                 }
             }
@@ -598,7 +671,7 @@ fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             .with(sprite_render)
             .with(components::Id::new())
             .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(0, 1), rng.gen_range(0, 1))))
-            .with(components::Mover::new(100.0))
+            .with(components::Mover::new(DEFAULT_BASE_SPEED))
             .with(local_transform)
             .build();
     }

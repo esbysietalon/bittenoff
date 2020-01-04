@@ -38,6 +38,12 @@ impl Physical{
     pub fn set_y(&mut self, new_y: f32) {
         self.real_pos.1 = new_y;
     }
+    pub fn mut_x(&mut self, d_x: f32) {
+        self.real_pos.0 += d_x;
+    }
+    pub fn mut_y(&mut self, d_y: f32) {
+        self.real_pos.1 += d_y;
+    }
     /*pub fn set_tile_position(&mut self, real_position: (f32, f32)) -> (usize, usize) {
         let mut tile_x = 0;
         let mut tile_y = 0;

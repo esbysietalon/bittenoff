@@ -29,7 +29,7 @@ impl<'s> System<'s> for MoveSystem{
             //println!("next move is {:?}", mover.get_move());
             match mover.get_step() {
                 Some(a) => {
-                    //println!("next move: {:?}", a.pos);
+                    //println!("next move: {:?} curr goal: {:?}", a.pos, mover.get_goal());
                     if a.area() == phys.get_location() {
                         if a.local() == phys.get_tile_position() {
                             //println!("reached goal successfully!");
@@ -48,7 +48,7 @@ impl<'s> System<'s> for MoveSystem{
                             phys.mut_y(-mover.speed() * time.delta_seconds());
                         }
                     }else{
-                        //println!("wrong area, recalculate path");
+                        println!("wrong area, recalculate path");
                         mover.clear_step_vec();
                     }
                 }
@@ -73,25 +73,26 @@ impl<'s> System<'s> for RudderSystem{
 
     fn run(&mut self, (mut physicals, mut movers, config, map): Self::SystemData) {
         for (mover, phys) in (&mut movers, &mut physicals).join(){
-            if mover.is_step_vec_empty() {
+            if mover.is_step_vec_empty() && map.location == phys.get_location() {
                 match mover.get_goal() {
                     None => {}
                     Some(goal) => {    
                         let (x, y) = phys.get_tile_position();
                         //println!("current tile position {:?}", (x, y));
                         
-                        println!("phys {:?} goal {:?}", (phys.get_tile_position(), phys.get_location()), (goal.local(), goal.area()));
+                        //println!("phys {:?} goal {:?}", (phys.get_tile_position(), phys.get_location()), (goal.local(), goal.area()));
                         if (x, y) != goal.local() && phys.get_location() == goal.area() {
 
                             let origin = map.anchor_points[x + y * map.width + 4].clone();
                             //println!("anchor points are currently: {:?}", map.anchor_points);
-                            let path = astar(&origin, |p| {let successors: Vec<(Anchor, usize)> = (*p).succ.to_vec().into_iter().map(|val| (map.anchor_points[val].clone(), 1)).collect(); successors},
+                            let path = astar(&origin, |p| {let successors: Vec<(Anchor, usize)> = (*p).succ.to_vec().into_iter().map(|val| (map.anchor_points[val.0].clone(), val.1)).collect(); successors},
                             |p| (((*p).pos.0 as i32 - goal.pos.0 as i32).abs() + ((*p).pos.1 as i32 - goal.pos.1 as i32).abs()) as usize / 3,
                             |p| *p == goal);
                             //println!("path calculated!");
                             match path {
                                 Some((v, c)) => {
                                     //println!("path cost is {}", c);
+                                    //println!("same area: path is {:?}", v);
                                     mover.set_step_vec(v);
                                 }
                                 None => {
@@ -102,7 +103,7 @@ impl<'s> System<'s> for RudderSystem{
                                 }
                             }
                         }else if phys.get_tile_position() == goal.local() && phys.get_location() == goal.area() {
-                            println!("reached goal successfully");
+                            //println!("reached goal successfully");
                             mover.pop_goal();
                         }else if goal.area() != phys.get_location() {
                             //println!("not same area, sending to other area");
@@ -119,14 +120,16 @@ impl<'s> System<'s> for RudderSystem{
                             area.anchor_points.push(north);
                             area.anchor_points.push(south);
                             */
-
+                            /*if map.location == phys.get_location() {
+                                println!("curr locale: {:?} need to get to: {:?}", (cax, cay), (gax, gay));
+                            }*/
                             if cax < gax {
                                 //east
                                 //println!("go east");
                                 goal = map.anchor_points[1].clone();
                             }else if cax > gax {
                                 //west
-                                //println!("go west");
+                               //println!("go west");
                                 goal = map.anchor_points[0].clone();
                             }else if cay < gay {
                                 //north
@@ -141,18 +144,19 @@ impl<'s> System<'s> for RudderSystem{
                             //println!("goal anchor is {:?}", goal);
 
                             let origin = map.anchor_points[x + y * map.width + 4].clone();
-                            let path = astar(&origin, |p| {let successors: Vec<(Anchor, usize)> = (*p).succ.to_vec().into_iter().map(|val| (map.anchor_points[val].clone(), 1)).collect(); successors},
+                            let path = astar(&origin, |p| {let successors: Vec<(Anchor, usize)> = (*p).succ.to_vec().into_iter().map(|val| (map.anchor_points[val.0].clone(), val.1)).collect(); successors},
                             |p| (((*p).pos.0 as i32 - goal.pos.0 as i32).abs() + ((*p).pos.1 as i32 - goal.pos.1 as i32).abs()) as usize / 3,
                             |p| *p == goal);
                             //println!("path calculated!");
                             match path {
                                 Some((v, c)) => {
                                     //println!("path cost is {}", c);
+                                    //println!("change area: path is {:?}", v);
                                     mover.set_step_vec(v);
                                 }
                                 None => {
                                     if phys.get_location() == map.location {
-                                        println!("diff area no path found! from {:?} to {:?}", (x, y, phys.get_location().0, phys.get_location().1), goal);
+                                        //println!("change area no path found! from {:?} to {:?}", (x, y, phys.get_location().0, phys.get_location().1), goal);
                                         mover.pop_goal();
                                     }
                                 }
@@ -191,13 +195,14 @@ impl<'s> System<'s> for SimpleIdle{
                     let gx = rng.gen_range(0, map.width);
                     let gy = rng.gen_range(0, map.height);
 
+                    let index = gx + gy * map.width;
                     //if (ax, ay) == map.location {
-                    if gx + gy * map.width < map.anchor_points.len() {
+                    if index < map.width * map.height && index < map.anchor_points.len() {
                         //println!("adding goal {:?}", map.anchor_points[gx + gy * map.width].pos);
-                        let mut dest_anchor = map.anchor_points[gx + gy * map.width].clone();
+                        let mut dest_anchor = map.anchor_points[gx + gy * map.width + 4].clone();
                         dest_anchor.set_area((ax, ay));
 
-                        println!("destination anchor {:?}", dest_anchor);
+                        //println!("destination anchor {:?}", dest_anchor);
                         mover.add_goal( Goal::new(1, dest_anchor) );
                     }
                     /*}else{

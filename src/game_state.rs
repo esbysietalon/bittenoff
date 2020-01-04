@@ -72,7 +72,7 @@ impl TileBlock {
 #[derive(Eq, Debug, Hash)]
 pub struct Anchor{
     pub pos: (usize, usize, i32, i32),
-    pub succ: Vec<usize>,
+    pub succ: Vec<(usize, usize)>,
 }
 
 impl Anchor {
@@ -230,11 +230,11 @@ pub fn update_world_seed(map: &mut Map, dir: char){
 
         _ => {}
     }
-    println!("area is {:?}", map.location);
+    //println!("area is {:?}", map.location);
 }
 
 pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
-    println!("loading area to map from {}", to_load.1);
+    //println!("loading area to map from {}", to_load.1);
 
     let mut area_pointer = &(Area::new());
     match to_load.0 {
@@ -305,11 +305,11 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
         }   
     }
     
-    println!("area lookup is {}", *new_area_index);
+    //println!("area lookup is {}", *new_area_index);
 
 
     if *new_area_index == usize::max_value() {
-        println!("creating new area");
+        //println!("creating new area");
 
         let mut area = Area::new();
 
@@ -365,17 +365,17 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                 let mut anchor = Anchor::new(tx, ty, map.location.0, map.location.1);
                 if tx == 0 {
                     //add west to succ
-                    anchor.succ.push(0);
+                    anchor.succ.push((0, 10));
                 }else if tx == w - 1 {
                     //add east to succ
-                    anchor.succ.push(1);
+                    anchor.succ.push((1, 10));
                 }
                 if ty == 0 {
                     //add south to succ
-                    anchor.succ.push(3);
+                    anchor.succ.push((3, 10));
                 } else if ty == h - 1 {
                     //add north to succ
-                    anchor.succ.push(2);
+                    anchor.succ.push((2, 10));
                 }
                 for y in -1..2 {
                     let py = anchor.pos.1 as i32 + y;
@@ -399,8 +399,12 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                             break;
                         }
                         let index = nx + ny * w;
+                        let mut cost = 10;
+                        if x != 0 && y != 0 {
+                            cost = 14;
+                        }
                         if map.tiles[index].passable {
-                            anchor.succ.push(index + 4);
+                            anchor.succ.push((index + 4, cost));
                         }
                     }
                 }
@@ -440,7 +444,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
         //map.world_map.push(area);
         (Some(area), *new_area_index)
     }else{
-        println!("no new area needed; found area {}", *new_area_index);
+        //println!("no new area needed; found area {}", *new_area_index);
 
         //let area = &map.world_map[*new_area_index];
 
@@ -478,6 +482,8 @@ fn generate_map(world: &mut World){
     let yseed = map.world_seed.1;
     let aseed = map.world_seed.2;
     let bseed = map.world_seed.3;
+
+    println!("map dim: {:?}", (w, h));
 
     for y in 0..h {
         for x in 0..w {
@@ -523,17 +529,17 @@ fn generate_map(world: &mut World){
             let mut anchor = Anchor::new(tx, ty, map.location.0, map.location.1);
             if tx == 0 {
                 //add west to succ
-                anchor.succ.push(0);
+                anchor.succ.push((0, 10));
             }else if tx == w - 1 {
                 //add east to succ
-                anchor.succ.push(1);
+                anchor.succ.push((1, 10));
             }
             if ty == 0 {
                 //add south to succ
-                anchor.succ.push(3);
+                anchor.succ.push((3, 10));
             } else if ty == h - 1 {
                 //add north to succ
-                anchor.succ.push(2);
+                anchor.succ.push((2, 10));
             }
             for y in -1..2 {
                 let py = anchor.pos.1 as i32 + y;
@@ -557,9 +563,13 @@ fn generate_map(world: &mut World){
                         break;
                     }
                     let index = nx + ny * w;
+                    let mut cost = 10;
+                    if x != 0 && y != 0 {
+                        cost = 14;
+                    }
                     //println!("made it here to index {}", index);
                     if map.tiles[index].passable {
-                        anchor.succ.push(index + 4);
+                        anchor.succ.push((index + 4, cost));
                     }
                 }
             }

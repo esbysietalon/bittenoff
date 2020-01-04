@@ -60,7 +60,7 @@ impl<'s> System<'s> for MapSystem{
             }    
         }
         if change_map {
-            println!("change map!");
+            //println!("change map! {}", dir);
 
             {
                 update_world_seed(&mut map, dir);

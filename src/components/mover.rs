@@ -50,7 +50,9 @@ impl PartialOrd for Goal {
 pub struct Mover{
     pos_goals: BinaryHeap<Goal>,
     step_vec: Vec<Anchor>,
+    path_cost: usize,
     base_speed: f32,
+    last_step: (usize, usize),
 }
 
 impl Mover{
@@ -58,7 +60,9 @@ impl Mover{
         Mover {
             pos_goals: BinaryHeap::new(),
             step_vec: Vec::new(),
+            path_cost: 0,
             base_speed: speed,
+            last_step: (usize::max_value(), usize::max_value()),
         }
     }
     pub fn speed(&self) -> f32 {
@@ -69,10 +73,12 @@ impl Mover{
     }
     pub fn clear_step_vec(&mut self) {
         self.step_vec.clear();
+        self.path_cost = 0;
     }
-    pub fn set_step_vec(&mut self, vec: Vec<Anchor>) {
+    pub fn set_step_vec(&mut self, vec: Vec<Anchor>, cost: usize) {
         //println!("setting step vec to {:?}", vec);
         self.step_vec = vec;
+        self.path_cost = cost;
     }
     pub fn get_step(&self) -> Option<Anchor> {
         //println!("step vec len: {}", self.step_vec.len());
@@ -82,10 +88,27 @@ impl Mover{
             Some(self.step_vec[0].clone())
         }
     }
+    pub fn path_cost(&self) -> usize {
+        self.path_cost
+    }
+    pub fn path(&self) -> Vec<Anchor> {
+        self.step_vec.clone()
+    }
     pub fn pop_step(&mut self) -> Option<Anchor> {
         if self.step_vec.is_empty() {
             None
         }else{
+            let mut cost = 10;
+            if self.last_step != (usize::max_value(), usize::max_value()) {
+                if self.last_step.0 != self.step_vec[0].pos.0 && self.last_step.1 != self.step_vec[1].pos.1 {
+                    cost = 14;
+                }
+            }
+            if self.path_cost >= cost {
+                self.path_cost -= cost;
+            }else{
+                self.path_cost = 0;
+            }
             Some(self.step_vec.remove(0))
         }
     }

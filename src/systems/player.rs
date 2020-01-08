@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, Map, Area, load_map, regenerate_map, update_world_seed};
+use crate::game_state::{Config, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
 
 pub struct MapSystem;
 
@@ -95,7 +95,7 @@ impl<'s> System<'s> for MoveSystem{
             let movement = input.axis_value("horizontal_mv");
             //println!("running, since {}", time.delta_seconds());
             if let Some(mv_amount) = movement {
-                let scaled_amount = 100.0 * time.delta_seconds() * mv_amount as f32;
+                let scaled_amount = PLAYER_SPEED * time.delta_seconds() * mv_amount as f32;
                 let x = phys.get_real_position().0;
                 //println!("updating x by {}", scaled_amount);
                 phys.set_x(
@@ -108,7 +108,7 @@ impl<'s> System<'s> for MoveSystem{
 
             let movement = input.axis_value("vertical_mv");
             if let Some(mv_amount) = movement {
-                let scaled_amount = 100.0 * time.delta_seconds() * mv_amount as f32;
+                let scaled_amount = PLAYER_SPEED * time.delta_seconds() * mv_amount as f32;
                 let y = phys.get_real_position().1;
                 //println!("updating x by {}", scaled_amount);
                 phys.set_y(

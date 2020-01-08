@@ -38,14 +38,30 @@ impl<'s> System<'s> for MoveSystem{
                         let (ox, oy) = phys.get_real_position();
                         let (ex, ey) = a.real_local();
                         if ox < ex {
-                            phys.mut_x(mover.speed() * time.delta_seconds()); 
+                            let mut hor_mv = mover.speed() * time.delta_seconds();
+                            if hor_mv > ex - ox {
+                                hor_mv = ex - ox;
+                            }
+                            phys.mut_x(hor_mv); 
                         }else if ox > ex {
-                            phys.mut_x(-mover.speed() * time.delta_seconds());
+                            let mut hor_mv = -mover.speed() * time.delta_seconds();
+                            if hor_mv < ex - ox {
+                                hor_mv = ex - ox;
+                            }
+                            phys.mut_x(hor_mv);
                         }
                         if oy < ey {
-                            phys.mut_y(mover.speed() * time.delta_seconds());
+                            let mut ver_mv = mover.speed() * time.delta_seconds();
+                            if ver_mv > ey - oy {
+                                ver_mv = ey - oy;
+                            }
+                            phys.mut_y(ver_mv);
                         }else if oy > ey {
-                            phys.mut_y(-mover.speed() * time.delta_seconds());
+                            let mut ver_mv = -mover.speed() * time.delta_seconds();
+                            if ver_mv < ey - oy {
+                                ver_mv = ey - oy;
+                            }
+                            phys.mut_y(ver_mv);
                         }
                     }else{
                         println!("wrong area, recalculate path");
@@ -93,7 +109,7 @@ impl<'s> System<'s> for RudderSystem{
                                 Some((v, c)) => {
                                     //println!("path cost is {}", c);
                                     //println!("same area: path is {:?}", v);
-                                    mover.set_step_vec(v);
+                                    mover.set_step_vec(v, c);
                                 }
                                 None => {
                                     if map.location == phys.get_location() {
@@ -152,7 +168,7 @@ impl<'s> System<'s> for RudderSystem{
                                 Some((v, c)) => {
                                     //println!("path cost is {}", c);
                                     //println!("change area: path is {:?}", v);
-                                    mover.set_step_vec(v);
+                                    mover.set_step_vec(v, c);
                                 }
                                 None => {
                                     if phys.get_location() == map.location {
@@ -181,9 +197,9 @@ impl<'s> System<'s> for SimpleIdle{
 
     fn run(&mut self, (physes, mut movers, config, map): Self::SystemData) {
         for (mover, phys) in (&mut movers, &physes).join(){
-            if map.location != phys.get_location() {
+            /*if map.location != phys.get_location() {
                 continue;
-            }
+            }*/
             
             match mover.get_goal() {
                 None => {

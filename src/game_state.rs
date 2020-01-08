@@ -33,16 +33,20 @@ use crate::components::Id;
 
 pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
-pub const PERSON_NUM: u32 = 1;
+pub const PLAYER_SPEED: f32 = 120.0;
 
-pub const DEFAULT_BASE_SPEED: f32 = 80.0;
+pub const PERSON_NUM: u32 = 15;
+
+pub const DEFAULT_BASE_SPEED: f32 = 120.0;
 
 pub const TILE_SIZE: usize = 16;
-pub const ENTITY_LIM: usize = 15;
+pub const ENTITY_LIM: usize = 50;
 
 pub const ZOOM_FACTOR: f64 = 0.5;
 pub const ADJUSTMENT_ZOOM_FACTOR: f64 = 0.25;
 pub const NOISE_DISPLACEMENT: f64 = 0.5;
+
+pub const OFFSCREEN_UNKNOWN_PATH_WAIT_TIME: f32 = 10.0 * 100.0 / DEFAULT_BASE_SPEED; //in seconds
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
@@ -680,8 +684,9 @@ fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             .create_entity()
             .with(sprite_render)
             .with(components::Id::new())
-            .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(0, 1), rng.gen_range(0, 1))))
+            .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(-1, 2), rng.gen_range(-1, 2))))
             .with(components::Mover::new(DEFAULT_BASE_SPEED))
+            .with(components::Offscreen::new())
             .with(local_transform)
             .build();
     }

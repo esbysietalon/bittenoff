@@ -48,6 +48,10 @@ pub const NOISE_DISPLACEMENT: f64 = 0.5;
 
 pub const OFFSCREEN_UNKNOWN_PATH_WAIT_TIME: f32 = 10.0 * 100.0 / DEFAULT_BASE_SPEED; //in seconds
 
+pub const RUNE_BOARD_DIM: usize = 3;
+pub const RUNE_BOARD_TILE_SIZE: usize = 64;
+pub const ALPHABET_SIZE: usize = 10;
+
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
     GrassyHeavy = 0,
@@ -590,6 +594,30 @@ fn generate_map(world: &mut World){
     map.world_map.push(area);
 }
 
+fn initialise_runes(world: &mut World) {
+
+}
+
+fn initialise_rune_board_ui(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
+    for y in 0..RUNE_BOARD_DIM {
+        for x in 0..RUNE_BOARD_DIM {
+            let mut local_transform = Transform::default();
+            local_transform.set_translation_xyz((x * RUNE_BOARD_TILE_SIZE) as f32, (y * RUNE_BOARD_TILE_SIZE) as f32, 1.0);
+            let sprite_render = SpriteRender {
+                sprite_sheet: sprite_sheet.clone(),
+                sprite_number: 0,
+            };
+
+            world
+                .create_entity()
+                .with(sprite_render)
+                .with(local_transform)
+                .build();
+        }
+    }
+    
+    
+}
 fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let s_w = world.read_resource::<Config>().stage_width;
     let s_h = world.read_resource::<Config>().stage_height;
@@ -768,6 +796,10 @@ impl SimpleState for LoadingState {
     
             initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
             
+            self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "ui_tile"));
+
+            initialise_rune_board_ui(world, self.sprite_sheet_handle.clone().unwrap());
+
             initialise_camera(*world);
 
             data.world

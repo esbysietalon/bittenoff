@@ -77,6 +77,19 @@ impl<'s> System<'s> for MapSystem{
     }
 }
 
+pub struct ActionSystem;
+
+impl<'s> System<'s> for ActionSystem{
+    type SystemData = (
+        Read<'s, Config>,
+        Read<'s, InputHandler<StringBindings>>,
+        Read<'s, Time>,
+    );
+
+    fn run(&mut self, (config, input, time): Self::SystemData) {
+        
+    }
+}
 pub struct MoveSystem;
 
 impl<'s> System<'s> for MoveSystem{

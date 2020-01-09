@@ -51,6 +51,9 @@ pub const OFFSCREEN_UNKNOWN_PATH_WAIT_TIME: f32 = 10.0 * 100.0 / DEFAULT_BASE_SP
 
 pub const RUNE_BOARD_DIM: usize = 3;
 pub const RUNE_BOARD_TILE_SIZE: usize = 64;
+
+pub const MAX_BRUSH_STROKE_DIST: f32 = 4.0;
+
 pub const ALPHABET_SIZE: usize = 10;
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]

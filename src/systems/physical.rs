@@ -70,7 +70,7 @@ impl<'s> System<'s> for PhysicalSystem{
             }
         }
         for (phys, mover, offs) in (&mut objs, &mut movers, &mut offscreens).join() {
-            
+            //println!("start frame");
             let offs_time = offs.time_passed();
             if offs_time > 0.0 {
                 let p_c = mover.path_cost();
@@ -92,7 +92,7 @@ impl<'s> System<'s> for PhysicalSystem{
                             if anchor.area() != phys.get_location() {
                                 let (ax, ay) = anchor.area();
                                 let (px, py) = phys.get_location();
-
+                                //println!("other area");
                                 if px < ax {
                                     //east
                                     //println!("east");
@@ -102,7 +102,7 @@ impl<'s> System<'s> for PhysicalSystem{
                                     //west
                                     //println!("west");
                                     phys.mut_area_x(-1);
-                                    phys.set_x(config.stage_height - TILE_SIZE as f32 / 2.0);
+                                    phys.set_x(config.stage_width - TILE_SIZE as f32 / 2.0);
                                 }else if py < ay {
                                     //north
                                     //println!("north");
@@ -122,10 +122,13 @@ impl<'s> System<'s> for PhysicalSystem{
                                 phys.set_y(gy);
                                 mover.pop_goal();
                             }
-                            mover.clear_step_vec();
+                            
                         }
-                        None => {}
+                        None => {
+                            //println!("no goal");
+                        }
                     }
+                    mover.clear_step_vec();
                     offs.reset();
                 }else if path_completed > 0.0 {
                     if phys.get_location() == map.location {
@@ -146,11 +149,15 @@ impl<'s> System<'s> for PhysicalSystem{
                 }
 
             }
+            //println!("end frame");
         }
         for (transform, obj) in (&mut transforms, &objs).join(){
 
             //println!("obj location is now {:?}", (obj.get_tile_position(), obj.get_location()));
             if obj.get_location() == map.location {
+                //if obj.get_real_position() != (480.0, 300.0) {
+                    //println!("obj at {:?}", obj.get_real_position());
+                //}
                 transform.set_translation_xyz(obj.get_real_position().0, obj.get_real_position().1, 0.0);
             }else{
                 transform.set_translation_xyz(-100.0, 0.0, 0.0);

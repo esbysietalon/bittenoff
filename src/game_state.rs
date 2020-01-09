@@ -36,7 +36,7 @@ pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
 pub const PLAYER_SPEED: f32 = 120.0;
 
-pub const PERSON_NUM: u32 = 15;
+pub const PERSON_NUM: u32 = 25;
 
 pub const DEFAULT_BASE_SPEED: f32 = 120.0;
 

@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
+use crate::game_state::{Config, UiHolder, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
 
 pub struct MapSystem;
 
@@ -77,17 +77,42 @@ impl<'s> System<'s> for MapSystem{
     }
 }
 
-pub struct ActionSystem;
+pub struct ActionSystem{
+    pub input_ready: bool,
+}
+
+impl ActionSystem {
+    pub fn new() -> ActionSystem {
+        ActionSystem {
+            input_ready: true,
+        }
+    }
+}
 
 impl<'s> System<'s> for ActionSystem{
     type SystemData = (
+        ReadStorage<'s, Player>,
         Read<'s, Config>,
         Read<'s, InputHandler<StringBindings>>,
+        Write<'s, UiHolder>,
         Read<'s, Time>,
     );
 
-    fn run(&mut self, (config, input, time): Self::SystemData) {
-        
+    fn run(&mut self, (players, config, input, mut ui_holder, time): Self::SystemData) {
+        for (player) in (&players).join() {
+            let action = input.action_is_down("action").unwrap_or(false);
+
+            if action {
+                if self.input_ready {
+                    let curr = ui_holder.is_active(0);
+                    ui_holder.set_active(0, !curr);
+                }
+                self.input_ready = false;
+            }else {
+                self.input_ready = true;
+            }
+            
+        }
     }
 }
 pub struct MoveSystem;

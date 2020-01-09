@@ -72,12 +72,17 @@ fn main() -> amethyst::Result<()> {
         .with(systems::MapSystem, "map_update_system", &[])
         .with(systems::PlayerMoveSystem, "player_move_system", &["input_system"])
         .with(systems::PlayerLocalitySystem, "player_locality_system", &[])
+        .with(systems::PlayerActionSystem::new(), "player_action_system", &[])
         .with(systems::SimpleIdle, "simple_idle_system", &[])
         .with(systems::PhysicalSystem, "physical_system", &[])
         .with(systems::CounterSystem, "fps_system", &[])
         .with(systems::MoveSystem, "move_system", &[])
         .with(systems::RudderSystem, "rudder_system", &[])
         .with(systems::OffscreenSystem, "offscreen_system", &[])
+        .with(systems::UiDisplaySystem, "ui_display_system", &[])
+        .with(systems::UiControlSystem::new(), "ui_control_system", &[])
+        .with(systems::ParticleCleanUpSystem, "particle_clean_up_system", &[])
+        .with(systems::ParticleDisplaySystem, "particle_display_system", &[])
         .with_bundle(
         RenderingBundle::<DefaultBackend>::new()
             // The RenderToWindow plugin provides all the scaffolding for opening a window and drawing on it

@@ -28,7 +28,7 @@ impl<'s> System<'s> for PhysicalSystem{
 
                 let index = x + y * map.width;
 
-                if x >= 0 && x < map.width && y >= 0 && y < map.height {
+                if x < map.width && y < map.height {
                     map.entities[index] = id.clone();
                 }
 
@@ -141,6 +141,7 @@ impl<'s> System<'s> for PhysicalSystem{
                             phys.set_x(cx);
                             phys.set_y(cy);
                         }
+                        offs.reset();
                     }
                 }
 

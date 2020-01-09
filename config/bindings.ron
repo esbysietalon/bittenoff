@@ -3,5 +3,7 @@
 		"horizontal_mv": Emulated(pos: Key(D), neg: Key(A)),
 		"vertical_mv": Emulated(pos: Key(W), neg: Key(S)),
 	},
-	actions: {},
+	actions: {
+		"action": [ [Key(E)] ],
+	},
 )

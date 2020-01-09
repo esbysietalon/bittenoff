@@ -5,6 +5,10 @@ pub use self::physical::Physical;
 pub use self::fps::Counter;
 pub use self::tile::Tile;
 pub use self::offscreen::Offscreen;
+pub use self::sub_ui::SubUi;
+pub use self::particle::Particle;
+pub use self::particle::DeathType as ParticleDeathType;
+
 mod fps;
 mod tile;
 mod player;
@@ -12,3 +16,5 @@ mod id;
 mod mover;
 mod offscreen;
 mod physical;
+mod sub_ui;
+mod particle;

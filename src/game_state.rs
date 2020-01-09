@@ -26,6 +26,7 @@ use amethyst::{
     core::timing::Time,
     prelude::*,
     renderer::{Camera, ImageFormat, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
+    window::ScreenDimensions,
 };
 
 
@@ -188,6 +189,115 @@ impl Map {
             area_index: 0,
             rerolled: false,
         }   
+    }
+}
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum SpriteSheetLabel {
+    Particles,
+    Person,
+    Tiles,
+    UiTiles,
+    Size,
+}
+
+impl Default for SpriteSheetLabel {
+    fn default() -> Self {
+        SpriteSheetLabel::Size
+    }
+}
+
+#[derive(Default)]
+pub struct SpriteSheetHandles{
+    handles: Vec<(SpriteSheetLabel, Handle<SpriteSheet>)>,
+}
+
+impl SpriteSheetHandles {
+    pub fn new() -> Self {
+        SpriteSheetHandles {
+            handles: Vec::new(),
+        }
+    }
+    pub fn add(&mut self, label: SpriteSheetLabel, handle: Handle<SpriteSheet>) {
+        self.handles.push((label, handle));
+    }
+    pub fn get(&self, label: SpriteSheetLabel) -> Option<Handle<SpriteSheet>> {
+        let mut out = None;
+        for (tag, handle) in self.handles.iter() {
+            if *tag == label {
+                out = Some(handle.clone());
+                break;
+            }
+        }
+        out
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+//where the Uis are defined
+pub enum Ui {
+    RuneBoard = 0,
+    Size,
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Ui::Size
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct UiHolder {
+    pub is_active: Vec<(Ui, bool)>,
+}
+
+impl UiHolder {
+    pub fn new() -> UiHolder {
+        UiHolder {
+            is_active: Vec::new(),
+        }
+    }
+    pub fn set_active(&mut self, index: usize, act: bool) {
+        if index >= 0 && index < self.len() {
+            self.is_active[index].1 = act;
+        }
+    }
+    pub fn is_active(&self, index: usize) -> bool {
+        if index >= 0 && index < self.len() {
+            self.is_active[index].1
+        }else{
+            false
+        }
+    }
+    pub fn get_type(&self, index: usize) -> Ui {
+        if index >= 0 && index < self.len() {
+            (self.is_active[index]).0
+        }else{
+            Ui::default()
+        }
+    }
+    pub fn len(&self) -> usize {
+        self.is_active.len()
+    }
+    pub fn add_ui(&mut self, ui: Ui) -> usize {
+        self.is_active.push((ui, false));
+        self.len() - 1
+    }
+}
+
+//dimensions of the screen
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Dimensions{
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Dimensions {
+    pub fn new() -> Self {
+        Dimensions {
+            width: 0.0,
+            height: 0.0,
+        }
     }
 }
 
@@ -598,11 +708,38 @@ fn initialise_runes(world: &mut World) {
 
 }
 
+fn initialise_spritesheet_handles(world: &mut World) {
+    let mut handles = SpriteSheetHandles::new();
+
+    handles.add(SpriteSheetLabel::Particles, load_sprite_sheet(world, "particles"));
+    handles.add(SpriteSheetLabel::Person, load_sprite_sheet(world, "player"));
+    handles.add(SpriteSheetLabel::Tiles, load_sprite_sheet(world, "tiles"));
+    handles.add(SpriteSheetLabel::UiTiles, load_sprite_sheet(world, "ui_tile"));
+
+    world.insert(handles);
+}
+
+fn initialise_ui_holder(world: &mut World) {
+    let ui_holder = UiHolder::new();
+
+    world.insert(ui_holder);
+}
+
 fn initialise_rune_board_ui(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
+    let s_w = world.read_resource::<Config>().stage_width;
+    let s_h = world.read_resource::<Config>().stage_height;
+    
+    let offset_x = s_w / 2.0 - 96.0;
+    let offset_y = s_h / 2.0 - 96.0;
+
+    let ui_len = world.read_resource::<UiHolder>().len();
+
+    world.write_resource::<UiHolder>().add_ui(Ui::RuneBoard);
+
     for y in 0..RUNE_BOARD_DIM {
         for x in 0..RUNE_BOARD_DIM {
             let mut local_transform = Transform::default();
-            local_transform.set_translation_xyz((x * RUNE_BOARD_TILE_SIZE) as f32, (y * RUNE_BOARD_TILE_SIZE) as f32, 1.0);
+            local_transform.set_translation_xyz(offset_x + (x * RUNE_BOARD_TILE_SIZE) as f32, offset_y + (y * RUNE_BOARD_TILE_SIZE) as f32, 1.0);
             let sprite_render = SpriteRender {
                 sprite_sheet: sprite_sheet.clone(),
                 sprite_number: 0,
@@ -612,11 +749,10 @@ fn initialise_rune_board_ui(world: &mut World, sprite_sheet: Handle<SpriteSheet>
                 .create_entity()
                 .with(sprite_render)
                 .with(local_transform)
+                .with(components::SubUi::new(offset_x + (x * RUNE_BOARD_TILE_SIZE) as f32, offset_y + (y * RUNE_BOARD_TILE_SIZE) as f32, 64.0, 64.0, ui_len))
                 .build();
         }
     }
-    
-    
 }
 fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let s_w = world.read_resource::<Config>().stage_width;
@@ -796,11 +932,19 @@ impl SimpleState for LoadingState {
     
             initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
             
+            initialise_ui_holder(world);
+
             self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "ui_tile"));
 
             initialise_rune_board_ui(world, self.sprite_sheet_handle.clone().unwrap());
 
+            initialise_spritesheet_handles(world);
+
             initialise_camera(*world);
+
+            //storage of screen dimensions
+            data.world.insert(Dimensions::new());
+
 
             data.world
                 .create_entity()
@@ -821,6 +965,12 @@ impl SimpleState for LoadingState {
 impl SimpleState for PlayState {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>){
         println!("Entering play state..");
-        
+    }
+
+    fn update(&mut self, data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
+        let mut dim = data.world.fetch_mut::<Dimensions>();
+        dim.width = data.world.fetch::<ScreenDimensions>().width();
+        dim.height = data.world.fetch::<ScreenDimensions>().height();
+        Trans::None
     }
 }

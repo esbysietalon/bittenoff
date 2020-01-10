@@ -58,8 +58,8 @@ pub const RUNE_BOARD_TILE_SIZE: usize = 64;
 pub const MAX_BRUSH_STROKE_DIST: f32 = 4.0;
 pub const STROKE_FORGIVENESS: f32 = RUNE_BOARD_TILE_SIZE as f32 / 4.0;
 
-pub const RUNE_ALPHABET_SIZE: usize = 1;
-pub const MAX_RUNE_EDGES: usize = 5;
+pub const RUNE_ALPHABET_SIZE: usize = 10;
+pub const MAX_RUNE_EDGES: usize = 2;
 
 #[derive(Debug, Clone, Copy)]
 pub enum SpellComponent {
@@ -172,24 +172,26 @@ impl Rune {
 
 impl PartialEq for Rune {
     fn eq(&self, other: &Rune) -> bool {
+        //println!("comparing {:?} and {:?}", self, other);
         if self.edges.len() != other.edges.len() {
             false  
         }else{
             let mut out = true;
             for pt in self.edges.iter() {
-                if !other.edges.contains(pt) {
+                if !other.edges.contains(pt) && !other.edges.contains(&(pt.1, pt.0)) {
                     out = false;
                     break;
                 }
             }
             if out {
                 for pt in other.edges.iter() {
-                    if !self.edges.contains(pt) {
+                    if !self.edges.contains(pt) && !self.edges.contains(&(pt.1, pt.0)) {
                         out = false;
                         break;
                     }
                 }
             }
+            //println!("returning {}", out);
             out
         }
     }

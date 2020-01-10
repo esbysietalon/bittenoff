@@ -9,7 +9,7 @@ use amethyst::{
 };
 use amethyst::ecs::prelude::{Entity, Entities};
 use crate::game_state::{UiHolder, UiState, Ui, SpriteSheetHandles, SpriteSheetLabel, 
-    Config, Dimensions, Rune, 
+    Config, Dimensions, Rune, RuneAlphabet,
     display_rune,
     MAX_BRUSH_STROKE_DIST, STROKE_FORGIVENESS, RUNE_BOARD_DIM};
 use crate::components::{SubUi, Particle, ParticleDeathType};
@@ -29,9 +29,10 @@ impl<'s> System<'s> for UiDisplaySystem{
         Entities<'s>,
         Read<'s, SpriteSheetHandles>,
         Read<'s, Config>,
+        Read<'s, RuneAlphabet>,
     );
 
-    fn run(&mut self, (ui_holder, mut ui_state, mut eles, mut trans, mut srs, mut parts, mut ents, handles, config): Self::SystemData) {
+    fn run(&mut self, (ui_holder, mut ui_state, mut eles, mut trans, mut srs, mut parts, mut ents, handles, config, runalp): Self::SystemData) {
         
         for (ele, tran) in (&mut eles, &mut trans).join() {
             if ui_holder.is_active(ele.parent()) {
@@ -62,7 +63,22 @@ impl<'s> System<'s> for UiDisplaySystem{
                                 &mut parts,
                                 &mut trans,
                                 &mut srs
-                            )
+                            );
+
+                            if runalp.is_in(rune.clone()) {
+                                display_rune(
+                                    rune.clone(),
+                                    config.stage_width * 1.0 / 3.0, 
+                                    config.stage_height * 2.0 / 3.0,
+                                    1.0,
+                                    ui_index,
+                                    &handles,
+                                    &mut ents,
+                                    &mut parts,
+                                    &mut trans,
+                                    &mut srs
+                                );
+                            }
                         }
                     }
                 }

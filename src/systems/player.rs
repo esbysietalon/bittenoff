@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, UiHolder, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
+use crate::game_state::{Config, UiHolder, UiState, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
 
 pub struct MapSystem;
 
@@ -95,10 +95,11 @@ impl<'s> System<'s> for ActionSystem{
         Read<'s, Config>,
         Read<'s, InputHandler<StringBindings>>,
         Write<'s, UiHolder>,
+        Write<'s, UiState>,
         Read<'s, Time>,
     );
 
-    fn run(&mut self, (players, config, input, mut ui_holder, time): Self::SystemData) {
+    fn run(&mut self, (players, config, input, mut ui_holder, mut ui_state, time): Self::SystemData) {
         for (player) in (&players).join() {
             let action = input.action_is_down("action").unwrap_or(false);
 
@@ -106,6 +107,7 @@ impl<'s> System<'s> for ActionSystem{
                 if self.input_ready {
                     let curr = ui_holder.is_active(0);
                     
+                    ui_state.rune_board_rune = None;
                     //Rune Craft UI
                     ui_holder.set_active(0, !curr);
                     ui_holder.set_active(1, !curr);

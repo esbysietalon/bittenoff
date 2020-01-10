@@ -8,6 +8,8 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::fs;
 
+use std::f32::consts::PI;
+
 use rand::Rng;
 
 use std::sync::{Arc};
@@ -19,7 +21,7 @@ use ron::de::from_str;
 
 use noise::{Seedable, NoiseFn, Perlin, Billow};
 
-use amethyst::ecs::prelude::Entity;
+use amethyst::ecs::prelude::{Read, Entity, Entities, WriteStorage};
 use amethyst::{
     assets::{AssetStorage, Handle, Loader},
     core::transform::Transform,
@@ -30,7 +32,7 @@ use amethyst::{
 };
 
 
-use crate::components::Id;
+use crate::components::{Id, Particle, ParticleDeathType};
 
 pub const PLAYER_WIDTH: usize = 1;
 pub const PLAYER_HEIGHT: usize = 1;
@@ -132,7 +134,34 @@ impl Rune {
     }
     pub fn add_edge(&mut self, pt: ((usize, usize),(usize, usize))) -> bool {
         let mut out = false;
-        if !self.edges.contains(&pt) {
+        let pt_a = pt.0;
+        let pt_b = pt.1;
+        
+        let mut invalid = false;
+        
+        if (pt_a.0 as i32 - pt_b.0 as i32).abs() > 1 || (pt_a.1 as i32 - pt_b.1 as i32).abs() > 1 {
+            invalid = true;
+        }else{
+        
+            if pt_a != pt_b {
+                for (ea, eb) in self.edges.iter() {
+                    let mut found_a = false;
+                    let mut found_b = false;    
+                    if pt_a == *ea || pt_a == *eb {
+                        found_a = true;
+                    }
+                    if pt_b == *ea || pt_b == *eb {
+                        found_b = true;
+                    }
+                    if found_a && found_b {
+                        invalid = true;
+                    }
+                }
+            }else{
+                invalid = self.edges.contains(&pt);
+            }
+        }
+        if !invalid {
             self.edges.push(pt);
             out = true;
         }
@@ -687,6 +716,76 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
     }
 }
 
+pub fn display_rune(rune: Rune, x: f32, y: f32, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+    for ((ox, oy), (ex, ey)) in rune.edges.iter() {
+        let dx = *ex as i32 - *ox as i32;
+        let dy = *ey as i32 - *oy as i32;
+
+        let mut px = x - 32.0;//config.stage_width / 3.0 - 32.0;
+        let mut py = y - 32.0;;//config.stage_height * 2.0 / 3.0 - 32.0;
+
+        let mut local_transform = Transform::default();
+        local_transform.set_translation_xyz(0.0, 0.0, 3.0);
+
+
+        let mut sprite_render = SpriteRender {
+            sprite_sheet: handles.get(SpriteSheetLabel::Particles).unwrap(),
+            sprite_number: 1,
+        };
+
+        if dx == 0 && dy == 0 {
+            //point
+            //no rotation/transform needed just translation
+            px += (*ox) as f32 * 32.0;
+            py += (*oy) as f32 * 32.0;
+            
+        }else if dx != 0 && dy == 0 {
+
+            local_transform.set_rotation_z_axis((PI / 2.0) as f32);
+            px += (*ox) as f32 * 32.0 + 16.0;
+            py += (*oy) as f32 * 32.0;
+            if dx < 0 {
+                px -= 32.0;
+                //local_transform.set_rotation_z_axis(PI as f32);
+            }
+            sprite_render.sprite_number = 2;
+
+        }else if dx == 0 && dy != 0 {
+
+            px += (*ox) as f32 * 32.0;
+            py += (*oy) as f32 * 32.0 - 16.0;
+            if dy > 0 {
+                py += 32.0;
+            }
+            sprite_render.sprite_number = 2;
+
+        }else {
+            //full diagonal
+            if dx * dy > 0 {
+                local_transform.set_rotation_z_axis((PI / 2.0) as f32);
+            }
+            px += (*ox) as f32 * 32.0 + 16.0;
+            if dx < 0 {
+                px -= 32.0;
+            }
+            py += (*oy) as f32 * 32.0 - 16.0;
+            if dy > 0 { 
+                py += 32.0;
+            }
+            sprite_render.sprite_number = 3; 
+
+        }
+
+        let mut local_particle = Particle::new(px, py, 0, ParticleDeathType::Ui);
+        local_particle.set_ui(ui_index);
+
+        ents.build_entity()
+            .with(local_transform, trans)
+            .with(local_particle, parts)
+            .with(sprite_render, srs)
+            .build();
+    }
+}
 
 fn noise_ease(raw: f64) -> f64{
     let abs = raw.abs();

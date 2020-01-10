@@ -53,8 +53,117 @@ pub const RUNE_BOARD_DIM: usize = 3;
 pub const RUNE_BOARD_TILE_SIZE: usize = 64;
 
 pub const MAX_BRUSH_STROKE_DIST: f32 = 4.0;
+pub const STROKE_FORGIVENESS: f32 = RUNE_BOARD_TILE_SIZE as f32 / 4.0;
 
-pub const ALPHABET_SIZE: usize = 10;
+pub const RUNE_ALPHABET_SIZE: usize = 1;
+pub const MAX_RUNE_EDGES: usize = 5;
+
+#[derive(Debug, Clone, Copy)]
+pub enum SpellComponent {
+    Force,
+    Fire,
+    Size,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct UiState {
+    pub rune_board_rune: Option<Rune>,
+}
+
+impl UiState {
+    pub fn new() -> Self {
+        UiState {
+            rune_board_rune: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RuneAlphabet {
+    letters: Vec<Rune>,
+}
+
+impl Default for RuneAlphabet {
+    fn default() -> Self {
+        RuneAlphabet::new()
+    }
+}
+
+impl RuneAlphabet {
+    pub fn new() -> Self {
+        RuneAlphabet {
+            letters: Vec::new(),
+        }
+    }
+    pub fn add_rune(&mut self, rune: Rune) -> bool {
+        let mut out = false;
+        if !self.letters.contains(&rune) {
+            self.letters.push(rune);
+            out = true;
+        }
+        out
+    }    
+    pub fn is_in(&self, rune: Rune) -> bool {
+        self.letters.contains(&rune)
+    }
+    pub fn len(&self) -> usize {
+        self.letters.len()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Rune {
+    pub edges: Vec<((usize, usize),(usize, usize))>,
+    pub flavour: SpellComponent,
+}
+
+impl Default for Rune {
+    fn default() -> Self {
+        Rune::new()
+    }
+}
+
+impl Rune {
+    pub fn new() -> Self {
+        Rune {
+            edges: Vec::new(),
+            flavour: SpellComponent::Size,
+        }
+    }
+    pub fn add_edge(&mut self, pt: ((usize, usize),(usize, usize))) -> bool {
+        let mut out = false;
+        if !self.edges.contains(&pt) {
+            self.edges.push(pt);
+            out = true;
+        }
+        out
+    }
+}
+
+impl PartialEq for Rune {
+    fn eq(&self, other: &Rune) -> bool {
+        if self.edges.len() != other.edges.len() {
+            false  
+        }else{
+            let mut out = true;
+            for pt in self.edges.iter() {
+                if !other.edges.contains(pt) {
+                    out = false;
+                    break;
+                }
+            }
+            if out {
+                for pt in other.edges.iter() {
+                    if !self.edges.contains(pt) {
+                        out = false;
+                        break;
+                    }
+                }
+            }
+            out
+        }
+    }
+}
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
@@ -240,6 +349,8 @@ impl SpriteSheetHandles {
 //where the Uis are defined
 pub enum Ui {
     RuneBoard = 0,
+    RuneDisplay,
+    SpellDisplay,
     Size,
 }
 
@@ -708,7 +819,33 @@ fn generate_map(world: &mut World){
 }
 
 fn initialise_runes(world: &mut World) {
+    let mut rune_alphabet = RuneAlphabet::new();
+    while rune_alphabet.len() < RUNE_ALPHABET_SIZE {
+        let mut rune = Rune::new();
+        let mut edge_calls = 0;
 
+        while edge_calls < MAX_RUNE_EDGES {
+            let mut rng = rand::thread_rng();
+
+            let ox = rng.gen_range(0, RUNE_BOARD_DIM);
+            let oy = rng.gen_range(0, RUNE_BOARD_DIM);
+
+            let dx = rng.gen_range(-1, 2);
+            let dy = rng.gen_range(-1, 2);
+
+            let ex = (ox as i32 + dx).max(0).min(RUNE_BOARD_DIM as i32 - 1) as usize;
+            let ey = (oy as i32 + dy).max(0).min(RUNE_BOARD_DIM as i32 - 1) as usize;
+
+            rune.add_edge( ((ox, oy), (ex, ey)) );
+            edge_calls += 1;
+        }
+
+        rune_alphabet.add_rune(rune);
+    }
+
+    println!("generated Rune Alphabet is {:?}", rune_alphabet);
+
+    world.insert(rune_alphabet);
 }
 
 fn initialise_spritesheet_handles(world: &mut World) {
@@ -722,22 +859,27 @@ fn initialise_spritesheet_handles(world: &mut World) {
     world.insert(handles);
 }
 
-fn initialise_ui_holder(world: &mut World) {
+fn initialise_ui_system(world: &mut World) {
     let ui_holder = UiHolder::new();
 
     world.insert(ui_holder);
+
+    let ui_state = UiState::new();
+
+    world.insert(ui_state);
 }
 
 fn initialise_rune_board_ui(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
     let s_w = world.read_resource::<Config>().stage_width;
     let s_h = world.read_resource::<Config>().stage_height;
     
-    let offset_x = s_w / 2.0 - 96.0;
-    let offset_y = s_h / 2.0 - 96.0;
+    let offset_x = s_w * 2.0 / 3.0 - 96.0;
+    let offset_y = s_h * 2.0 / 3.0 - 96.0;
 
     let ui_len = world.read_resource::<UiHolder>().len();
 
     world.write_resource::<UiHolder>().add_ui(Ui::RuneBoard);
+    
 
     for y in 0..RUNE_BOARD_DIM {
         for x in 0..RUNE_BOARD_DIM {
@@ -756,6 +898,30 @@ fn initialise_rune_board_ui(world: &mut World, sprite_sheet: Handle<SpriteSheet>
                 .build();
         }
     }
+
+    
+    let offset_x = s_w * 1.0 / 3.0 - 64.0;
+    let offset_y = s_h * 2.0 / 3.0 - 64.0;
+
+    let ui_len = world.read_resource::<UiHolder>().len();
+
+    world.write_resource::<UiHolder>().add_ui(Ui::RuneDisplay);
+
+    let mut local_transform = Transform::default();
+    local_transform.set_translation_xyz(offset_x, offset_y, 1.0);
+    let sprite_render = SpriteRender {
+        sprite_sheet: sprite_sheet.clone(),
+        sprite_number: 1,
+    };
+
+    world
+        .create_entity()
+        .with(sprite_render)
+        .with(local_transform)
+        .with(components::SubUi::new(offset_x, offset_y, 128.0, 128.0, ui_len))
+        .build();
+    
+    world.write_resource::<UiHolder>().add_ui(Ui::SpellDisplay);
 }
 fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let s_w = world.read_resource::<Config>().stage_width;
@@ -935,13 +1101,15 @@ impl SimpleState for LoadingState {
     
             initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
             
-            initialise_ui_holder(world);
+            initialise_ui_system(world);
 
             self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "ui_tile"));
 
             initialise_rune_board_ui(world, self.sprite_sheet_handle.clone().unwrap());
 
             initialise_spritesheet_handles(world);
+
+            initialise_runes(world);
 
             initialise_camera(*world);
 

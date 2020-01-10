@@ -105,7 +105,11 @@ impl<'s> System<'s> for ActionSystem{
             if action {
                 if self.input_ready {
                     let curr = ui_holder.is_active(0);
+                    
+                    //Rune Craft UI
                     ui_holder.set_active(0, !curr);
+                    ui_holder.set_active(1, !curr);
+                    ui_holder.set_active(2, !curr);
                 }
                 self.input_ready = false;
             }else {

@@ -26,6 +26,7 @@ use amethyst::{
     assets::{AssetStorage, Handle, Loader},
     core::transform::Transform,
     core::timing::Time,
+    core::math::Vector3,
     prelude::*,
     renderer::{Camera, ImageFormat, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
     window::ScreenDimensions,
@@ -716,17 +717,17 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
     }
 }
 
-pub fn display_rune(rune: Rune, x: f32, y: f32, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
     for ((ox, oy), (ex, ey)) in rune.edges.iter() {
         let dx = *ex as i32 - *ox as i32;
         let dy = *ey as i32 - *oy as i32;
 
-        let mut px = x - 32.0;//config.stage_width / 3.0 - 32.0;
-        let mut py = y - 32.0;;//config.stage_height * 2.0 / 3.0 - 32.0;
+        let mut px = x - 32.0 * scale_factor;//config.stage_width / 3.0 - 32.0;
+        let mut py = y - 32.0 * scale_factor;//config.stage_height * 2.0 / 3.0 - 32.0;
 
         let mut local_transform = Transform::default();
         local_transform.set_translation_xyz(0.0, 0.0, 3.0);
-
+        local_transform.set_scale(Vector3::new(scale_factor, scale_factor, 1.0));
 
         let mut sprite_render = SpriteRender {
             sprite_sheet: handles.get(SpriteSheetLabel::Particles).unwrap(),
@@ -736,26 +737,26 @@ pub fn display_rune(rune: Rune, x: f32, y: f32, ui_index: usize, handles: &Read<
         if dx == 0 && dy == 0 {
             //point
             //no rotation/transform needed just translation
-            px += (*ox) as f32 * 32.0;
-            py += (*oy) as f32 * 32.0;
+            px += (*ox) as f32 * 32.0 * scale_factor;
+            py += (*oy) as f32 * 32.0 * scale_factor;
             
         }else if dx != 0 && dy == 0 {
 
             local_transform.set_rotation_z_axis((PI / 2.0) as f32);
-            px += (*ox) as f32 * 32.0 + 16.0;
-            py += (*oy) as f32 * 32.0;
+            px += (*ox) as f32 * 32.0 * scale_factor + 16.0 * scale_factor;
+            py += (*oy) as f32 * 32.0 * scale_factor;
             if dx < 0 {
-                px -= 32.0;
+                px -= 32.0 * scale_factor;
                 //local_transform.set_rotation_z_axis(PI as f32);
             }
             sprite_render.sprite_number = 2;
 
         }else if dx == 0 && dy != 0 {
 
-            px += (*ox) as f32 * 32.0;
-            py += (*oy) as f32 * 32.0 - 16.0;
+            px += (*ox) as f32 * 32.0 * scale_factor;
+            py += (*oy) as f32 * 32.0 * scale_factor - 16.0 * scale_factor;
             if dy > 0 {
-                py += 32.0;
+                py += 32.0 * scale_factor;
             }
             sprite_render.sprite_number = 2;
 
@@ -764,13 +765,13 @@ pub fn display_rune(rune: Rune, x: f32, y: f32, ui_index: usize, handles: &Read<
             if dx * dy > 0 {
                 local_transform.set_rotation_z_axis((PI / 2.0) as f32);
             }
-            px += (*ox) as f32 * 32.0 + 16.0;
+            px += (*ox) as f32 * 32.0 * scale_factor + 16.0 * scale_factor;
             if dx < 0 {
-                px -= 32.0;
+                px -= 32.0 * scale_factor;
             }
-            py += (*oy) as f32 * 32.0 - 16.0;
+            py += (*oy) as f32 * 32.0 * scale_factor - 16.0 * scale_factor;
             if dy > 0 { 
-                py += 32.0;
+                py += 32.0 * scale_factor;
             }
             sprite_render.sprite_number = 3; 
 

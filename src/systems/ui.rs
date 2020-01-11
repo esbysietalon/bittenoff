@@ -54,7 +54,7 @@ impl<'s> System<'s> for UiDisplaySystem{
                             rune.clone(),
                             sx + 40.0 * i as f32, 
                             config.stage_height * 1.0 / 3.0,
-                            0.25,
+                            0.5,
                             0.01,
                             None,
                             ui_index,

@@ -972,6 +972,12 @@ fn initialise_runes(world: &mut World) {
 
             rune.add_edge( ((ox, oy), (ex, ey)) );
             edge_calls += 1;
+
+            if rune.edges.len() >= 2 {
+                if rng.gen::<f32>() >= 0.5 {
+                    break;
+                }
+            }
         }
 
         let mut rng = rand::thread_rng();

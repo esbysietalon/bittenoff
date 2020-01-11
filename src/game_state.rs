@@ -59,24 +59,38 @@ pub const MAX_BRUSH_STROKE_DIST: f32 = 4.0;
 pub const STROKE_FORGIVENESS: f32 = RUNE_BOARD_TILE_SIZE as f32 / 4.0;
 
 pub const RUNE_ALPHABET_SIZE: usize = 10;
-pub const MAX_RUNE_EDGES: usize = 2;
+pub const MAX_RUNE_EDGES: usize = 3;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, FromPrimitive)]
+pub enum KeyCheck {
+    Enter = 0,
+    E,
+    Size,
+}
+
+#[derive(Debug, Clone, Copy, FromPrimitive)]
 pub enum SpellComponent {
     Force,
     Fire,
+    With,
+    Upon,
+    Impact,
     Size,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct UiState {
     pub rune_board_rune: Option<Rune>,
+    pub current_spell: Vec<Rune>,
+    pub key_check: Vec<bool>,
 }
 
 impl UiState {
     pub fn new() -> Self {
         UiState {
             rune_board_rune: None,
+            current_spell: Vec::new(),
+            key_check: vec![false; KeyCheck::Size as usize],
         }
     }
 }
@@ -415,6 +429,16 @@ impl UiHolder {
             false
         }
     }
+    pub fn is_type_active(&self, ui_type: Ui) -> bool {
+        let mut out = false;
+        for (ui, act) in self.is_active.iter() {
+            if *ui == ui_type {
+                out = *act;
+                break;
+            }
+        }
+        out
+    }
     pub fn get_type(&self, index: usize) -> Ui {
         if index >= 0 && index < self.len() {
             (self.is_active[index]).0
@@ -719,7 +743,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
     }
 }
 
-pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, key_check: Option<usize>, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
     for ((ox, oy), (ex, ey)) in rune.edges.iter() {
         let dx = *ex as i32 - *ox as i32;
         let dy = *ey as i32 - *oy as i32;
@@ -781,6 +805,14 @@ pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, ui_index: usi
 
         let mut local_particle = Particle::new(px, py, 0, ParticleDeathType::Ui);
         local_particle.set_ui(ui_index);
+        
+        match key_check {
+            Some(key) => {
+                local_particle.set_key_check(key);
+            }
+            None => {}
+        }
+        
 
         ents.build_entity()
             .with(local_transform, trans)
@@ -941,6 +973,9 @@ fn initialise_runes(world: &mut World) {
             rune.add_edge( ((ox, oy), (ex, ey)) );
             edge_calls += 1;
         }
+
+        let mut rng = rand::thread_rng();
+        rune.flavour = num::FromPrimitive::from_u32(rng.gen_range(0, SpellComponent::Size as u32)).unwrap();
 
         rune_alphabet.add_rune(rune);
     }

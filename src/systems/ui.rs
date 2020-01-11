@@ -9,12 +9,12 @@ use amethyst::{
 };
 use amethyst::ecs::prelude::{Entity, Entities};
 use crate::game_state::{UiHolder, UiState, Ui, SpriteSheetHandles, SpriteSheetLabel, 
-    Config, Dimensions, Rune, RuneAlphabet,
+    Config, Dimensions, Rune, RuneAlphabet, KeyCheck,
     display_rune,
     MAX_BRUSH_STROKE_DIST, STROKE_FORGIVENESS, RUNE_BOARD_DIM};
 use crate::components::{SubUi, Particle, ParticleDeathType};
 
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 pub struct UiDisplaySystem;
 
@@ -45,8 +45,27 @@ impl<'s> System<'s> for UiDisplaySystem{
         //rune board
         //println!("ui_state: {:?}", *ui_state);
         for ui_index in 0..ui_holder.len() {
-            if ui_holder.is_active(ui_index) {        
-                if ui_holder.get_type(ui_index) == Ui::RuneDisplay {
+            if ui_holder.is_active(ui_index) {
+                if ui_holder.get_type(ui_index) == Ui::SpellDisplay {
+                    let sx = config.stage_width / 2.0 - 20.0 * ui_state.current_spell.len() as f32;
+                    let mut i = 0;
+                    for rune in ui_state.current_spell.iter() {
+                        display_rune(
+                            rune.clone(),
+                            sx + 40.0 * i as f32, 
+                            config.stage_height * 1.0 / 3.0,
+                            2.0,
+                            None,
+                            ui_index,
+                            &handles,
+                            &mut ents,
+                            &mut parts,
+                            &mut trans,
+                            &mut srs
+                        );
+                        i += 1;
+                    }
+                }else if ui_holder.get_type(ui_index) == Ui::RuneDisplay {
                     match &ui_state.rune_board_rune {
                         None => {
 
@@ -57,6 +76,7 @@ impl<'s> System<'s> for UiDisplaySystem{
                                 config.stage_width * 2.0 / 3.0, 
                                 config.stage_height * 2.0 / 3.0,
                                 2.0,
+                                Some(KeyCheck::Enter as usize),
                                 ui_index,
                                 &handles,
                                 &mut ents,
@@ -71,6 +91,7 @@ impl<'s> System<'s> for UiDisplaySystem{
                                     config.stage_width * 1.0 / 3.0, 
                                     config.stage_height * 2.0 / 3.0,
                                     1.0,
+                                    Some(KeyCheck::Enter as usize),
                                     ui_index,
                                     &handles,
                                     &mut ents,

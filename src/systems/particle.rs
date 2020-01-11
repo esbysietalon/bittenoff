@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings},
 };
 use amethyst::ecs::prelude::Entities;
-use crate::game_state::{Config, UiHolder};
+use crate::game_state::{Config, UiHolder, UiState};
 use crate::components::{Particle, ParticleDeathType};
 
 pub struct ParticleCleanUpSystem;
@@ -16,20 +16,37 @@ impl<'s> System<'s> for ParticleCleanUpSystem{
         Entities<'s>,
         Read<'s, Config>,
         Read<'s, UiHolder>,
+        Write<'s, UiState>,
         Read<'s, Time>,
     );
 
-    fn run(&mut self, (mut parts, mut ents, config, ui_holder, time): Self::SystemData) {
+    fn run(&mut self, (mut parts, mut ents, config, ui_holder, mut ui_state, time): Self::SystemData) {
         for (part, ent) in (&mut parts, &*ents).join() {
+           let mut deleted = false;
             match part.get_death_type() {
                 ParticleDeathType::Ui => {
-                    if !ui_holder.is_active(part.get_ui()) {
+                    if !deleted && !ui_holder.is_active(part.get_ui()) {
                         ents.delete(ent);
+                        deleted = true;
                     }
                 }
                 _ => {
 
                 }
+            }
+            match part.get_key_check() {
+                None => {}
+                Some(key) => {
+                    if !deleted && ui_state.key_check[key] {
+                        ents.delete(ent);
+                        deleted = true;
+                    }
+                }
+            }
+        }
+        for i in 0..ui_state.key_check.len() {
+            if ui_state.key_check[i] {
+                ui_state.key_check[i] = false;
             }
         }
     }

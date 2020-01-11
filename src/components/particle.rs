@@ -13,6 +13,7 @@ pub struct Particle{
     death_type: DeathType, 
     lifespan: f32,
     ui: usize,
+    key_check_index: Option<usize>,
 }
 
 impl Particle {
@@ -24,6 +25,7 @@ impl Particle {
             death_type,
             lifespan: 0.0,
             ui: 0,
+            key_check_index: None,
         }
     }
     pub fn get_x(&self) -> f32 {
@@ -49,6 +51,12 @@ impl Particle {
     }
     pub fn get_ui(&self) -> usize {
         self.ui
+    }
+    pub fn get_key_check(&self) -> Option<usize> {
+        self.key_check_index
+    }
+    pub fn set_key_check(&mut self, i: usize) {
+        self.key_check_index = Some(i);
     }
     pub fn get_sprite(&self) -> usize {
         self.sprite

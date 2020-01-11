@@ -2,10 +2,10 @@ use amethyst::{
     core::transform::Transform,
     core::timing::Time,
     ecs::prelude::{Join, Read, Write, ReadStorage, System, SystemData, WriteStorage},
-    input::{InputHandler, StringBindings},
+    input::{InputHandler, StringBindings, VirtualKeyCode},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, UiHolder, UiState, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
+use crate::game_state::{Config, UiHolder, UiState, Ui, KeyCheck, RuneAlphabet, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
 
 pub struct MapSystem;
 
@@ -79,12 +79,14 @@ impl<'s> System<'s> for MapSystem{
 
 pub struct ActionSystem{
     pub input_ready: bool,
+    pub input_lockout: f32,
 }
 
 impl ActionSystem {
     pub fn new() -> ActionSystem {
         ActionSystem {
             input_ready: true,
+            input_lockout: 0.0,
         }
     }
 }
@@ -96,10 +98,15 @@ impl<'s> System<'s> for ActionSystem{
         Read<'s, InputHandler<StringBindings>>,
         Write<'s, UiHolder>,
         Write<'s, UiState>,
+        Read<'s, RuneAlphabet>,
         Read<'s, Time>,
     );
 
-    fn run(&mut self, (players, config, input, mut ui_holder, mut ui_state, time): Self::SystemData) {
+    fn run(&mut self, (players, config, input, mut ui_holder, mut ui_state, runalp, time): Self::SystemData) {
+        self.input_lockout -= time.delta_seconds();
+        if self.input_lockout < 0.0 {
+            self.input_lockout = 0.0;
+        }
         for (player) in (&players).join() {
             let action = input.action_is_down("action").unwrap_or(false);
 
@@ -118,6 +125,24 @@ impl<'s> System<'s> for ActionSystem{
                 self.input_ready = true;
             }
             
+            
+            let enter = input.key_is_down(VirtualKeyCode::Return);
+            if enter && self.input_lockout == 0.0 {
+                ui_state.key_check[KeyCheck::Enter as usize] = true;
+                if ui_holder.is_type_active(Ui::RuneBoard) {
+                    let rbr = ui_state.rune_board_rune.clone();
+                    match rbr {
+                        None => {}
+                        Some(rune) => {
+                            if runalp.is_in(rune.clone()) {
+                                ui_state.current_spell.push(rune.clone());
+                                ui_state.rune_board_rune = None;
+                            }        
+                        }
+                    }
+                }
+                self.input_lockout = 0.5;
+            }
         }
     }
 }

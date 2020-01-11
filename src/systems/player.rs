@@ -128,6 +128,7 @@ impl<'s> System<'s> for ActionSystem{
             
             let enter = input.key_is_down(VirtualKeyCode::Return);
             if enter && self.input_lockout == 0.0 {
+                println!("spell length is {}", ui_state.current_spell.len());
                 ui_state.key_check[KeyCheck::Enter as usize] = true;
                 if ui_holder.is_type_active(Ui::RuneBoard) {
                     let rbr = ui_state.rune_board_rune.clone();

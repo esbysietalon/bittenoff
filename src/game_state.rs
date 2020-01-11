@@ -743,7 +743,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
     }
 }
 
-pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, key_check: Option<usize>, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, particle_lifespan: f32, key_check: Option<usize>, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
     for ((ox, oy), (ex, ey)) in rune.edges.iter() {
         let dx = *ex as i32 - *ox as i32;
         let dy = *ey as i32 - *oy as i32;
@@ -805,7 +805,7 @@ pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, key_check: Op
 
         let mut local_particle = Particle::new(px, py, 0, ParticleDeathType::Ui);
         local_particle.set_ui(ui_index);
-        
+        local_particle.set_lifespan(particle_lifespan);
         match key_check {
             Some(key) => {
                 local_particle.set_key_check(key);

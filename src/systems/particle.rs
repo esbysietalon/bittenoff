@@ -43,6 +43,11 @@ impl<'s> System<'s> for ParticleCleanUpSystem{
                     }
                 }
             }
+            if !deleted && part.get_lifespan() <= 0.0 {
+                ents.delete(ent);
+                deleted = true;
+            }
+            part.mut_lifespan(-time.delta_seconds());
         }
         for i in 0..ui_state.key_check.len() {
             if ui_state.key_check[i] {

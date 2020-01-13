@@ -47,14 +47,14 @@ impl<'s> System<'s> for UiDisplaySystem{
         for ui_index in 0..ui_holder.len() {
             if ui_holder.is_active(ui_index) {
                 if ui_holder.get_type(ui_index) == Ui::SpellDisplay {
-                    let sx = config.stage_width / 2.0 - 20.0 * ui_state.current_spell.len() as f32;
+                    let sx = config.stage_width / 2.0 - 40.0 * ui_state.current_spell.len() as f32;
                     let mut i = 0;
                     for rune in ui_state.current_spell.iter() {
                         display_rune(
                             rune.clone(),
-                            sx + 40.0 * i as f32, 
+                            sx + 80.0 * i as f32, 
                             config.stage_height * 1.0 / 3.0,
-                            0.5,
+                            0.75,
                             0.01,
                             None,
                             ui_index,

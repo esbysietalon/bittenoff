@@ -80,133 +80,13 @@ pub enum SpellComponent {
 
 #[derive(Debug, Clone, Default)]
 pub struct UiState {
-    pub rune_board_rune: Option<Rune>,
-    pub current_spell: Vec<Rune>,
     pub key_check: Vec<bool>,
 }
 
 impl UiState {
     pub fn new() -> Self {
         UiState {
-            rune_board_rune: None,
-            current_spell: Vec::new(),
             key_check: vec![false; KeyCheck::Size as usize],
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RuneAlphabet {
-    letters: Vec<Rune>,
-}
-
-impl Default for RuneAlphabet {
-    fn default() -> Self {
-        RuneAlphabet::new()
-    }
-}
-
-impl RuneAlphabet {
-    pub fn new() -> Self {
-        RuneAlphabet {
-            letters: Vec::new(),
-        }
-    }
-    pub fn add_rune(&mut self, rune: Rune) -> bool {
-        let mut out = false;
-        if !self.letters.contains(&rune) {
-            self.letters.push(rune);
-            out = true;
-        }
-        out
-    }    
-    pub fn is_in(&self, rune: Rune) -> bool {
-        self.letters.contains(&rune)
-    }
-    pub fn len(&self) -> usize {
-        self.letters.len()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Rune {
-    pub edges: Vec<((usize, usize),(usize, usize))>,
-    pub flavour: SpellComponent,
-}
-
-impl Default for Rune {
-    fn default() -> Self {
-        Rune::new()
-    }
-}
-
-impl Rune {
-    pub fn new() -> Self {
-        Rune {
-            edges: Vec::new(),
-            flavour: SpellComponent::Size,
-        }
-    }
-    pub fn add_edge(&mut self, pt: ((usize, usize),(usize, usize))) -> bool {
-        let mut out = false;
-        let pt_a = pt.0;
-        let pt_b = pt.1;
-        
-        let mut invalid = false;
-        
-        if (pt_a.0 as i32 - pt_b.0 as i32).abs() > 1 || (pt_a.1 as i32 - pt_b.1 as i32).abs() > 1 {
-            invalid = true;
-        }else{
-        
-            if pt_a != pt_b {
-                for (ea, eb) in self.edges.iter() {
-                    let mut found_a = false;
-                    let mut found_b = false;    
-                    if pt_a == *ea || pt_a == *eb {
-                        found_a = true;
-                    }
-                    if pt_b == *ea || pt_b == *eb {
-                        found_b = true;
-                    }
-                    if found_a && found_b {
-                        invalid = true;
-                    }
-                }
-            }else{
-                invalid = self.edges.contains(&pt);
-            }
-        }
-        if !invalid {
-            self.edges.push(pt);
-            out = true;
-        }
-        out
-    }
-}
-
-impl PartialEq for Rune {
-    fn eq(&self, other: &Rune) -> bool {
-        //println!("comparing {:?} and {:?}", self, other);
-        if self.edges.len() != other.edges.len() {
-            false  
-        }else{
-            let mut out = true;
-            for pt in self.edges.iter() {
-                if !other.edges.contains(pt) && !other.edges.contains(&(pt.1, pt.0)) {
-                    out = false;
-                    break;
-                }
-            }
-            if out {
-                for pt in other.edges.iter() {
-                    if !self.edges.contains(pt) && !self.edges.contains(&(pt.1, pt.0)) {
-                        out = false;
-                        break;
-                    }
-                }
-            }
-            //println!("returning {}", out);
-            out
         }
     }
 }
@@ -743,85 +623,6 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
     }
 }
 
-pub fn display_rune(rune: Rune, x: f32, y: f32, scale_factor: f32, particle_lifespan: f32, key_check: Option<usize>, ui_index: usize, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, parts: &mut WriteStorage<Particle>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
-    for ((ox, oy), (ex, ey)) in rune.edges.iter() {
-        let dx = *ex as i32 - *ox as i32;
-        let dy = *ey as i32 - *oy as i32;
-
-        let mut px = x - 32.0 * scale_factor;//config.stage_width / 3.0 - 32.0;
-        let mut py = y - 32.0 * scale_factor;//config.stage_height * 2.0 / 3.0 - 32.0;
-
-        let mut local_transform = Transform::default();
-        local_transform.set_translation_xyz(0.0, 0.0, 3.0);
-        local_transform.set_scale(Vector3::new(scale_factor, scale_factor, 1.0));
-
-        let mut sprite_render = SpriteRender {
-            sprite_sheet: handles.get(SpriteSheetLabel::Particles).unwrap(),
-            sprite_number: 1,
-        };
-
-        if dx == 0 && dy == 0 {
-            //point
-            //no rotation/transform needed just translation
-            px += (*ox) as f32 * 32.0 * scale_factor;
-            py += (*oy) as f32 * 32.0 * scale_factor;
-            
-        }else if dx != 0 && dy == 0 {
-
-            local_transform.set_rotation_z_axis((PI / 2.0) as f32);
-            px += (*ox) as f32 * 32.0 * scale_factor + 16.0 * scale_factor;
-            py += (*oy) as f32 * 32.0 * scale_factor;
-            if dx < 0 {
-                px -= 32.0 * scale_factor;
-                //local_transform.set_rotation_z_axis(PI as f32);
-            }
-            sprite_render.sprite_number = 2;
-
-        }else if dx == 0 && dy != 0 {
-
-            px += (*ox) as f32 * 32.0 * scale_factor;
-            py += (*oy) as f32 * 32.0 * scale_factor - 16.0 * scale_factor;
-            if dy > 0 {
-                py += 32.0 * scale_factor;
-            }
-            sprite_render.sprite_number = 2;
-
-        }else {
-            //full diagonal
-            if dx * dy > 0 {
-                local_transform.set_rotation_z_axis((PI / 2.0) as f32);
-            }
-            px += (*ox) as f32 * 32.0 * scale_factor + 16.0 * scale_factor;
-            if dx < 0 {
-                px -= 32.0 * scale_factor;
-            }
-            py += (*oy) as f32 * 32.0 * scale_factor - 16.0 * scale_factor;
-            if dy > 0 { 
-                py += 32.0 * scale_factor;
-            }
-            sprite_render.sprite_number = 3; 
-
-        }
-
-        let mut local_particle = Particle::new(px, py, 0, ParticleDeathType::Ui);
-        local_particle.set_ui(ui_index);
-        local_particle.set_lifespan(particle_lifespan);
-        match key_check {
-            Some(key) => {
-                local_particle.set_key_check(key);
-            }
-            None => {}
-        }
-        
-
-        ents.build_entity()
-            .with(local_transform, trans)
-            .with(local_particle, parts)
-            .with(sprite_render, srs)
-            .build();
-    }
-}
-
 fn noise_ease(raw: f64) -> f64{
     let abs = raw.abs();
 
@@ -952,45 +753,6 @@ fn generate_map(world: &mut World){
     map.world_map.push(area);
 }
 
-fn initialise_runes(world: &mut World) {
-    let mut rune_alphabet = RuneAlphabet::new();
-    while rune_alphabet.len() < RUNE_ALPHABET_SIZE {
-        let mut rune = Rune::new();
-        let mut edge_calls = 0;
-
-        while edge_calls < MAX_RUNE_EDGES {
-            let mut rng = rand::thread_rng();
-
-            let ox = rng.gen_range(0, RUNE_BOARD_DIM);
-            let oy = rng.gen_range(0, RUNE_BOARD_DIM);
-
-            let dx = rng.gen_range(-1, 2);
-            let dy = rng.gen_range(-1, 2);
-
-            let ex = (ox as i32 + dx).max(0).min(RUNE_BOARD_DIM as i32 - 1) as usize;
-            let ey = (oy as i32 + dy).max(0).min(RUNE_BOARD_DIM as i32 - 1) as usize;
-
-            rune.add_edge( ((ox, oy), (ex, ey)) );
-            edge_calls += 1;
-
-            if rune.edges.len() >= 2 {
-                if rng.gen::<f32>() >= 0.5 {
-                    break;
-                }
-            }
-        }
-
-        let mut rng = rand::thread_rng();
-        rune.flavour = num::FromPrimitive::from_u32(rng.gen_range(0, SpellComponent::Size as u32)).unwrap();
-
-        rune_alphabet.add_rune(rune);
-    }
-
-    println!("generated Rune Alphabet is {:?}", rune_alphabet);
-
-    world.insert(rune_alphabet);
-}
-
 fn initialise_spritesheet_handles(world: &mut World) {
     let mut handles = SpriteSheetHandles::new();
 
@@ -1012,60 +774,6 @@ fn initialise_ui_system(world: &mut World) {
     world.insert(ui_state);
 }
 
-fn initialise_rune_board_ui(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
-    let s_w = world.read_resource::<Config>().stage_width;
-    let s_h = world.read_resource::<Config>().stage_height;
-    
-    let offset_x = s_w * 2.0 / 3.0 - 96.0;
-    let offset_y = s_h * 2.0 / 3.0 - 96.0;
-
-    let ui_len = world.read_resource::<UiHolder>().len();
-
-    world.write_resource::<UiHolder>().add_ui(Ui::RuneBoard);
-    
-
-    for y in 0..RUNE_BOARD_DIM {
-        for x in 0..RUNE_BOARD_DIM {
-            let mut local_transform = Transform::default();
-            local_transform.set_translation_xyz(offset_x + (x * RUNE_BOARD_TILE_SIZE) as f32, offset_y + (y * RUNE_BOARD_TILE_SIZE) as f32, 1.0);
-            let sprite_render = SpriteRender {
-                sprite_sheet: sprite_sheet.clone(),
-                sprite_number: 0,
-            };
-
-            world
-                .create_entity()
-                .with(sprite_render)
-                .with(local_transform)
-                .with(components::SubUi::new(offset_x + (x * RUNE_BOARD_TILE_SIZE) as f32, offset_y + (y * RUNE_BOARD_TILE_SIZE) as f32, 64.0, 64.0, ui_len))
-                .build();
-        }
-    }
-
-    
-    let offset_x = s_w * 1.0 / 3.0 - 64.0;
-    let offset_y = s_h * 2.0 / 3.0 - 64.0;
-
-    let ui_len = world.read_resource::<UiHolder>().len();
-
-    world.write_resource::<UiHolder>().add_ui(Ui::RuneDisplay);
-
-    let mut local_transform = Transform::default();
-    local_transform.set_translation_xyz(offset_x, offset_y, 1.0);
-    let sprite_render = SpriteRender {
-        sprite_sheet: sprite_sheet.clone(),
-        sprite_number: 1,
-    };
-
-    world
-        .create_entity()
-        .with(sprite_render)
-        .with(local_transform)
-        .with(components::SubUi::new(offset_x, offset_y, 128.0, 128.0, ui_len))
-        .build();
-    
-    world.write_resource::<UiHolder>().add_ui(Ui::SpellDisplay);
-}
 fn initialise_tiles(world: &mut World, sprite_sheet: Handle<SpriteSheet>) {
     let s_w = world.read_resource::<Config>().stage_width;
     let s_h = world.read_resource::<Config>().stage_height;
@@ -1248,11 +956,7 @@ impl SimpleState for LoadingState {
 
             self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "ui_tile"));
 
-            initialise_rune_board_ui(world, self.sprite_sheet_handle.clone().unwrap());
-
             initialise_spritesheet_handles(world);
-
-            initialise_runes(world);
 
             initialise_camera(*world);
 

@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings, VirtualKeyCode},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, UiHolder, UiState, Ui, KeyCheck, RuneAlphabet, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
+use crate::game_state::{Config, UiHolder, UiState, Ui, KeyCheck, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
 
 pub struct MapSystem;
 
@@ -98,11 +98,10 @@ impl<'s> System<'s> for ActionSystem{
         Read<'s, InputHandler<StringBindings>>,
         Write<'s, UiHolder>,
         Write<'s, UiState>,
-        Read<'s, RuneAlphabet>,
         Read<'s, Time>,
     );
 
-    fn run(&mut self, (players, config, input, mut ui_holder, mut ui_state, runalp, time): Self::SystemData) {
+    fn run(&mut self, (players, config, input, mut ui_holder, mut ui_state, time): Self::SystemData) {
         self.input_lockout -= time.delta_seconds();
         if self.input_lockout < 0.0 {
             self.input_lockout = 0.0;
@@ -112,13 +111,7 @@ impl<'s> System<'s> for ActionSystem{
 
             if action {
                 if self.input_ready {
-                    let curr = ui_holder.is_active(0);
-                    
-                    ui_state.rune_board_rune = None;
-                    //Rune Craft UI
-                    ui_holder.set_active(0, !curr);
-                    ui_holder.set_active(1, !curr);
-                    ui_holder.set_active(2, !curr);
+                        
                 }
                 self.input_ready = false;
             }else {
@@ -130,18 +123,7 @@ impl<'s> System<'s> for ActionSystem{
             if enter && self.input_lockout == 0.0 {
                 //println!("spell length is {}", ui_state.current_spell.len());
                 ui_state.key_check[KeyCheck::Enter as usize] = true;
-                if ui_holder.is_type_active(Ui::RuneBoard) {
-                    let rbr = ui_state.rune_board_rune.clone();
-                    match rbr {
-                        None => {}
-                        Some(rune) => {
-                            if runalp.is_in(rune.clone()) {
-                                ui_state.current_spell.push(rune.clone());
-                                ui_state.rune_board_rune = None;
-                            }        
-                        }
-                    }
-                }
+               
                 self.input_lockout = 0.5;
             }
         }

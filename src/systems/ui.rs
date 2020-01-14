@@ -9,8 +9,7 @@ use amethyst::{
 };
 use amethyst::ecs::prelude::{Entity, Entities};
 use crate::game_state::{UiHolder, UiState, Ui, SpriteSheetHandles, SpriteSheetLabel, 
-    Config, Dimensions, KeyCheck,
-    MAX_BRUSH_STROKE_DIST, STROKE_FORGIVENESS, RUNE_BOARD_DIM};
+    Config, Dimensions, KeyCheck};
 use crate::components::{SubUi, Particle, ParticleDeathType};
 
 use std::f32::consts::PI;

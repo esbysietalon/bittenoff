@@ -52,14 +52,12 @@ pub const NOISE_DISPLACEMENT: f64 = 0.5;
 
 pub const OFFSCREEN_UNKNOWN_PATH_WAIT_TIME: f32 = 10.0 * 100.0 / DEFAULT_BASE_SPEED; //in seconds
 
-pub const RUNE_BOARD_DIM: usize = 3;
-pub const RUNE_BOARD_TILE_SIZE: usize = 64;
+pub const STRUCTURE_RESOLUTION_FACTOR: f32 = 0.25;
+pub const BIOME_RESOLUTION_FACTOR: f32 = 0.1;
 
-pub const MAX_BRUSH_STROKE_DIST: f32 = 4.0;
-pub const STROKE_FORGIVENESS: f32 = RUNE_BOARD_TILE_SIZE as f32 / 4.0;
+pub const BIOME_NUM: u32 = 2;
 
-pub const RUNE_ALPHABET_SIZE: usize = 10;
-pub const MAX_RUNE_EDGES: usize = 3;
+pub const MAP_SEED_RANGE: i32 = i32::max_value();
 
 #[derive(Debug, Clone, Copy, FromPrimitive)]
 pub enum KeyCheck {
@@ -93,12 +91,18 @@ impl UiState {
 
 #[derive(Clone, Copy, FromPrimitive, Debug)]
 pub enum Tile {
-    GrassyHeavy = 0,
+    Plain = 0,
     Grassy,
-    Plain,
     RockyLight,
+    GrassyHeavy,
     Rocky,
-    Size
+    BiomeSize,
+    Sandy,
+    SandySparse,
+    SandyRocky,
+    SandyWeed,
+    SandyBoulder,
+    Size,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -203,7 +207,7 @@ impl Area{
 pub struct Map{
     pub width: usize, 
     pub height: usize,
-    pub world_seed: (f64, f64, f64, f64),
+    pub world_seed: (f64, f64, f64, f64, f64, f64, f64, f64), // 0-4 tile-wise noise, 5-6 biome area-wise noise, 
     pub location: (i32, i32),
     pub tiles: Vec<TileBlock>,
     pub anchor_points: Vec<Anchor>,
@@ -218,7 +222,7 @@ impl Map {
         Map {
             width,
             height, 
-            world_seed: (0.0, 0.0, 0.0, 0.0),
+            world_seed: (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
             location: (0, 0),
             tiles: vec![TileBlock::new(Tile::Size, true); width * height],
             anchor_points: Vec::new(),
@@ -491,7 +495,8 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
         let billow = Billow::new();
 
         //perlin.set_seed(rng.gen::<u32>());
-
+        let bxseed = map.world_seed.4;
+        let byseed = map.world_seed.5;
         let xseed = map.world_seed.0;
         let yseed = map.world_seed.1;
         let aseed = map.world_seed.2;
@@ -503,6 +508,8 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                 let noise = perlin.get([xseed + x as f64 / w as f64 / ZOOM_FACTOR, yseed + y as f64 / h as f64 / ZOOM_FACTOR]);
                 let adjustment = billow.get([aseed + x as f64 / w as f64 / ADJUSTMENT_ZOOM_FACTOR, bseed + y as f64 / h as f64 / ADJUSTMENT_ZOOM_FACTOR]) * NOISE_DISPLACEMENT;
                 //(rng.gen::<f64>() - rng.gen::<f64>()) * NOISE_DISPLACEMENT;//
+                let biome_mod = (perlin.get([bxseed + (map.location.0 as f64 + x as f64 / w as f64 as f64) * BIOME_RESOLUTION_FACTOR as f64, byseed + (map.location.1 as f64 + y as f64 / h as f64) * BIOME_RESOLUTION_FACTOR as f64]).abs() * BIOME_NUM as f64) as u32;
+                
                 let mut tilefloat = noise_ease(noise + adjustment);
                 
                 if tilefloat >= 1.0 {
@@ -511,7 +518,7 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                     tilefloat = 0.0;
                 }
 
-                let tile = num::FromPrimitive::from_u32((tilefloat * (Tile::Size as i32 as f64)) as u32).unwrap();
+                let tile = num::FromPrimitive::from_u32(biome_mod * Tile::BiomeSize as u32 + (tilefloat * (Tile::BiomeSize as i32 as f64)) as u32).unwrap();
                 area.tiles.push(TileBlock::new(tile, true));
                 map.tiles[x + y * w] = area.tiles[x + y * w];
             }
@@ -645,6 +652,8 @@ fn generate_map(world: &mut World){
 
     //perlin.set_seed(rng.gen::<u32>());
 
+    let bxseed = map.world_seed.4;
+    let byseed = map.world_seed.5;
     let xseed = map.world_seed.0;
     let yseed = map.world_seed.1;
     let aseed = map.world_seed.2;
@@ -657,7 +666,7 @@ fn generate_map(world: &mut World){
             let noise = perlin.get([xseed + x as f64 / w as f64 / ZOOM_FACTOR, yseed + y as f64 / h as f64 / ZOOM_FACTOR]);
             let adjustment = billow.get([aseed + x as f64 / w as f64 / ADJUSTMENT_ZOOM_FACTOR, bseed + y as f64 / h as f64 / ADJUSTMENT_ZOOM_FACTOR]) * NOISE_DISPLACEMENT;//(rng.gen::<f64>() - rng.gen::<f64>()) * NOISE_DISPLACEMENT;
 
-            //println!("adjustment {}", adjustment);
+            let biome_mod = (perlin.get([bxseed + (map.location.0 as f64 + x as f64 / w as f64 as f64) * BIOME_RESOLUTION_FACTOR as f64, byseed + (map.location.1 as f64 + y as f64 / h as f64) * BIOME_RESOLUTION_FACTOR as f64]).abs() * BIOME_NUM as f64) as u32;
 
             let mut tilefloat = noise_ease(noise + adjustment);
             
@@ -667,12 +676,11 @@ fn generate_map(world: &mut World){
                 tilefloat = 0.0;
             }
 
-            //println!("tilefloat {}", tilefloat);
-
-            let tile = num::FromPrimitive::from_u32((tilefloat * (Tile::Size as i32 as f64)) as u32).unwrap();
+            let tile = num::FromPrimitive::from_u32(biome_mod * Tile::BiomeSize as u32 + (tilefloat * (Tile::BiomeSize as i32 as f64)) as u32).unwrap();
             //println!("tile {:?}", tile);
             area.tiles.push(TileBlock::new(tile, true));
             map.tiles[x + y * w] = area.tiles[x + y * w];
+            
         }
     }
 
@@ -744,11 +752,6 @@ fn generate_map(world: &mut World){
             area.anchor_points.push(anchor);           
         }
     }
-    /*
-    for i in 0..(map.width * map.height) {
-        area.tiles.push(num::FromPrimitive::from_u32(rng.gen_range(0, Tile::Size as u32)).unwrap());
-        map.tiles[i] = area.tiles[i];
-    }*/
 
     map.world_map.push(area);
 }
@@ -931,7 +934,7 @@ impl SimpleState for LoadingState {
             
             //seeding map world seed
             let mut rng = rand::thread_rng();
-            map.world_seed = (rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>());
+            map.world_seed = (rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64, rng.gen::<f64>() * MAP_SEED_RANGE as f64);
 
             println!("Loaded config: {:?}", loaded);
             data.world.insert(loaded);
@@ -953,8 +956,6 @@ impl SimpleState for LoadingState {
             initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
             
             initialise_ui_system(world);
-
-            self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "ui_tile"));
 
             initialise_spritesheet_handles(world);
 

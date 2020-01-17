@@ -56,6 +56,7 @@ pub const STRUCTURE_RESOLUTION_FACTOR: f32 = 0.25;
 pub const BIOME_RESOLUTION_FACTOR: f32 = 0.1;
 
 pub const BIOME_NUM: u32 = 2;
+pub const BIOME_TILESET_SIZE: u32 = 5;
 
 pub const MAP_SEED_RANGE: i32 = i32::max_value();
 
@@ -96,12 +97,13 @@ pub enum Tile {
     RockyLight,
     GrassyHeavy,
     Rocky,
-    BiomeSize,
     Sandy,
     SandySparse,
     SandyRocky,
     SandyWeed,
     SandyBoulder,
+    WoodFloor,
+    WoodWall,
     Size,
 }
 
@@ -232,6 +234,14 @@ impl Map {
             rerolled: false,
         }   
     }
+    pub fn is_passable(&self, tile: (usize, usize)) -> bool {
+        let index = tile.0 + tile.1 * self.width;
+        if index < self.width * self.height {
+            self.tiles[tile.0 + tile.1 * self.width].passable
+        }else{
+            true
+        }
+    }
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -355,6 +365,77 @@ impl Dimensions {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct Rect {
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize,
+}
+
+impl Rect {
+    pub fn new((x, y): (usize, usize), (w, h): (usize, usize)) -> Self {
+        Rect {
+            x,
+            y,
+            w,
+            h,
+        }
+    }
+    pub fn is_in(&self, point: (usize, usize)) -> bool {
+        (point.0 >= self.x && point.0 <= self.x + self.w && point.1 >= self.y && point.1 <= self.y + self.h)
+    }
+    pub fn check_collision(&self, o: &Rect) -> bool {
+        self.is_in((o.x, o.y)) || o.is_in((self.x, self.y))
+    }
+    pub fn split(&self, line_x: usize, line_y: usize) -> Vec<Rect> {
+        let mut out = Vec::new();
+        if line_x > self.x && line_x < self.x + self.w {
+            out.push(Rect::new((self.x, self.y), (line_x - self.x, self.h)));
+            out.push(Rect::new((line_x, self.y), (self.x + self.w - line_x, self.h)));
+        }
+        if line_y > self.y && line_y < self.y + self.h {
+            if out.len() > 0 {
+                let mut temp = Vec::new();
+                for rect in out.clone() {
+                    temp.append(&mut rect.split(0, line_y));
+                }
+                out.clear();
+                out.append(&mut temp);
+            }else{
+                out.push(Rect::new((self.x, self.y), (self.w, line_y - self.y)));
+                out.push(Rect::new((self.x, line_y), (self.w, self.y + self.h - line_y)));
+            }
+        }
+        out
+    }
+    
+    pub fn shrink(&mut self, dist_x: usize, dist_y: usize) {
+        //println!("shrinking from {:?}", self);
+        let max_shrink_w = ((self.w / 2) as isize - 2).max(0) as usize;
+        let max_shrink_h = ((self.h / 2) as isize - 2).max(0) as usize;
+        if dist_x < max_shrink_w {
+            self.x += dist_x;
+            self.w -= dist_x * 2;
+        }else{
+            self.x += max_shrink_w;
+            self.w -= max_shrink_w * 2;
+        }
+        if dist_y < max_shrink_h {
+            self.y += dist_y;
+            self.h -= dist_y * 2;
+        }else{
+            self.y += max_shrink_h;
+            self.h -= max_shrink_h * 2;
+        }
+        //println!("shrinking to {:?}", self);
+    }
+
+    pub fn center(&self) -> (usize, usize) {
+        (self.x + self.w / 2, self.y + self.h / 2)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct Config{
     pub stage_height: f32,
@@ -403,6 +484,128 @@ pub fn update_world_seed(map: &mut Map, dir: char){
         _ => {}
     }
     //println!("area is {:?}", map.location);
+}
+
+pub fn generate_structures(area: &mut Area, location: (i32, i32), seed: (f64, f64), dim: (usize, usize)) {
+
+    //println!("calling generate_structures");
+
+    let (map_x, map_y) = location;
+    let (seed_x, seed_y) = seed;
+    let (map_width, map_height) = dim;
+    let billow = Billow::new();
+    let noise_check = billow.get([map_x as f64 * STRUCTURE_RESOLUTION_FACTOR as f64 + seed_x, map_y as f64 * STRUCTURE_RESOLUTION_FACTOR as f64 + seed_y]);
+
+    let mut rect_squad = Vec::<Rect>::new();
+    
+    rect_squad.push(Rect::new((1, 1), (map_width-1, map_height-1)));
+
+    let mut structure_num = (noise_check.abs() / 0.1) as usize;
+
+    //println!("setup complete; structure_num {}", structure_num);
+
+    while rect_squad.len() < structure_num {
+        let mut temp = Vec::new();
+
+        let mut rng = rand::thread_rng();
+        let randi = rng.gen_range(0, rect_squad.len());
+
+        //println!("randi is {}", randi);
+
+        let chosen_rect = rect_squad[randi];
+
+        //println!("selecting rectangle {:?}", chosen_rect);
+
+        if chosen_rect.w < 5 || chosen_rect.h < 5 {
+            continue;
+        }else{
+            let dir = rng.gen_range(0, 2);
+            let mut split_x = 0;
+            let mut split_y = 0;
+
+            if dir == 0 {
+                //horizontal split
+                let mut lb = chosen_rect.x + chosen_rect.w / 3;
+                let mut rb = chosen_rect.x + chosen_rect.w * 2 / 3;
+                if chosen_rect.w / 3 < 5 && chosen_rect.w / 2 >= 5 {
+                    lb = chosen_rect.x + chosen_rect.w / 2;
+                    rb = chosen_rect.x + chosen_rect.w / 2 + 1;
+                }else if chosen_rect.w / 2 < 5{
+                    structure_num -= 1;
+                    continue;
+                }
+                //println!("left bound {} right bound {}", lb, rb);
+
+                split_x = rng.gen_range(lb, rb);
+            }else{
+                //vertical split
+                let mut lb = chosen_rect.y + chosen_rect.h / 3;
+                let mut ub = chosen_rect.y + chosen_rect.h * 2 / 3;
+                if chosen_rect.h / 3 < 5 && chosen_rect.h / 2 >= 5 {
+                    lb = chosen_rect.y + chosen_rect.h / 2;
+                    ub = chosen_rect.y + chosen_rect.h / 2 + 1;
+                }else if chosen_rect.h / 2 < 5{
+                    structure_num -= 1;
+                    continue;
+                }
+
+                //println!("lower bound {} upper bound {}", lb, ub);
+
+                split_y = rng.gen_range(lb, ub);
+            }
+            temp.append(&mut chosen_rect.split(split_x, split_y));
+        }
+
+        rect_squad.remove(randi);
+        rect_squad.append(&mut temp);
+    }
+    
+    //println!("rectangles split up!");
+
+    for mut rect in rect_squad {
+        //println!("shrinking rectangles");
+
+        let mut rng = rand::thread_rng();
+        let shrinkage = rng.gen_range(2 + (10 - structure_num), 5 + 1 * (10 - structure_num));
+
+        //println!("shrinkage {}", shrinkage);
+
+        rect.shrink((shrinkage as f32 * 1.5) as usize, shrinkage);
+
+        //println!("transferring rect tiles..");
+
+        let mut perimeter = Vec::new();
+        for y in rect.y..(rect.y + rect.h) {
+            for x in rect.x..(rect.x + rect.w) {
+                //println!("replacing tile at {:?}", (x, y));
+                if (x == rect.x || x == rect.x + rect.w - 1) || (y == rect.y || y == rect.y + rect.h - 1) {
+                    if !((x == rect.x || x == rect.x + rect.w - 1) && (y == rect.y || y == rect.y + rect.h - 1)) {
+                        perimeter.push((x, y));
+                    }
+                    area.tiles[x + y * map_width] = TileBlock::new(Tile::WoodWall, false);
+                }else{
+                    area.tiles[x + y * map_width] = TileBlock::new(Tile::WoodFloor, true);
+                }
+                
+            }
+        }
+
+        //println!("tiles transferred!");
+
+        let randi = rng.gen_range(0, perimeter.len());
+        
+        //println!("door tile index selected! {}", randi);
+
+        let (doorx, doory) = perimeter[randi];
+
+        //println!("door tile is {:?}", (doorx, doory));
+
+        area.tiles[doorx + doory * map_width] = TileBlock::new(Tile::WoodFloor, true);
+
+        //println!("door placed!");
+    }
+
+    //println!("structures generated!");
 }
 
 pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
@@ -518,11 +721,19 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                     tilefloat = 0.0;
                 }
 
-                let tile = num::FromPrimitive::from_u32(biome_mod * Tile::BiomeSize as u32 + (tilefloat * (Tile::BiomeSize as i32 as f64)) as u32).unwrap();
+                let tile = num::FromPrimitive::from_u32(biome_mod * BIOME_TILESET_SIZE + (tilefloat * (BIOME_TILESET_SIZE as f64)) as u32).unwrap();
                 area.tiles.push(TileBlock::new(tile, true));
+            }
+        }
+
+        generate_structures(&mut area, map.location, (map.world_seed.6, map.world_seed.7), (map.width, map.height));
+        
+        for y in 0..h {
+            for x in 0..w {
                 map.tiles[x + y * w] = area.tiles[x + y * w];
             }
         }
+
 
         //adding out of bounds anchor points
         let west = Anchor::new(usize::max_value(), 0, map.location.0, map.location.1);
@@ -552,34 +763,36 @@ pub fn regenerate_map(map: &mut Map, area_index: usize, direction: char) -> (Opt
                     //add north to succ
                     anchor.succ.push((2, 10));
                 }
-                for y in -1..2 {
-                    let py = anchor.pos.1 as i32 + y;
-                    if py < 0 {
-                        continue;
-                    }
-                    let ny = py as usize;
-                    if ny >= h {
-                        break;
-                    }
-                    for x in -1..2 {
-                        if x == 0 && y == 0 {
+                if map.tiles[tx + ty * w].passable {
+                    for y in -1..2 {
+                        let py = anchor.pos.1 as i32 + y;
+                        if py < 0 {
                             continue;
                         }
-                        let px = anchor.pos.0 as i32 + x;
-                        if px < 0 {
-                            continue;
-                        }
-                        let nx = px as usize;
-                        if nx >= w {
+                        let ny = py as usize;
+                        if ny >= h {
                             break;
                         }
-                        let index = nx + ny * w;
-                        let mut cost = 10;
-                        if x != 0 && y != 0 {
-                            cost = 14;
-                        }
-                        if map.tiles[index].passable {
-                            anchor.succ.push((index + 4, cost));
+                        for x in -1..2 {
+                            if x == 0 && y == 0 {
+                                continue;
+                            }
+                            let px = anchor.pos.0 as i32 + x;
+                            if px < 0 {
+                                continue;
+                            }
+                            let nx = px as usize;
+                            if nx >= w {
+                                break;
+                            }
+                            let index = nx + ny * w;
+                            let mut cost = 10;
+                            if x != 0 && y != 0 {
+                                cost = 14;
+                            }
+                            if map.tiles[index].passable {
+                                anchor.succ.push((index + 4, cost));
+                            }
                         }
                     }
                 }
@@ -676,13 +889,23 @@ fn generate_map(world: &mut World){
                 tilefloat = 0.0;
             }
 
-            let tile = num::FromPrimitive::from_u32(biome_mod * Tile::BiomeSize as u32 + (tilefloat * (Tile::BiomeSize as i32 as f64)) as u32).unwrap();
+            let tile = num::FromPrimitive::from_u32(biome_mod * BIOME_TILESET_SIZE + (tilefloat * (BIOME_TILESET_SIZE as f64)) as u32).unwrap();
             //println!("tile {:?}", tile);
             area.tiles.push(TileBlock::new(tile, true));
-            map.tiles[x + y * w] = area.tiles[x + y * w];
+            
             
         }
     }
+
+    generate_structures(&mut area, map.location, (map.world_seed.6, map.world_seed.7), (map.width, map.height));
+
+    for y in 0..h {
+        for x in 0..w {
+            map.tiles[x + y * w] = area.tiles[x + y * w];
+        }
+    }
+
+    println!("map tiles transferred");
 
     //adding out of bounds anchor points
     let west = Anchor::new(usize::max_value(), 0, map.location.0, map.location.1);

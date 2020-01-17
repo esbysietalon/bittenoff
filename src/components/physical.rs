@@ -5,6 +5,7 @@ use crate::game_state::TILE_SIZE;
 pub struct Physical{
     real_pos: (f32, f32),
     area_pos: (i32, i32),
+    offset: (f32, f32),
 }
 
 impl Physical{
@@ -12,6 +13,7 @@ impl Physical{
         Physical {
             real_pos,
             area_pos,
+            offset: (0.0, 0.0),
         }
     }
     pub fn get_location(&self) -> (i32, i32) {
@@ -31,6 +33,9 @@ impl Physical{
     }
     pub fn get_real_position(&self) -> (f32, f32) {
         self.real_pos
+    }
+    pub fn get_display_offset(&self) -> (f32, f32) {
+        self.offset
     }
     pub fn set_x(&mut self, new_x: f32) {
         self.real_pos.0 = new_x;

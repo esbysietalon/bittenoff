@@ -5,7 +5,7 @@ use amethyst::{
     input::{InputHandler, StringBindings, VirtualKeyCode},
 };
 use crate::components::{Player, Physical};
-use crate::game_state::{Config, UiHolder, UiState, Ui, KeyCheck, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
+use crate::game_state::{TILE_SIZE, Config, UiHolder, UiState, Ui, KeyCheck, Map, Area, load_map, regenerate_map, update_world_seed, PLAYER_SPEED};
 
 pub struct MapSystem;
 
@@ -137,10 +137,12 @@ impl<'s> System<'s> for MoveSystem{
         WriteStorage<'s, Physical>,
         Read<'s, Config>,
         Read<'s, InputHandler<StringBindings>>,
-        Read<'s, Time>
+        Read<'s, Time>,
+        Read<'s, Map>,
     );
 
-    fn run(&mut self, (players, mut physicals, config, input, time): Self::SystemData) {
+
+    fn run(&mut self, (players, mut physicals, config, input, time, map): Self::SystemData) {
         
 
         for (player, phys) in (&players, &mut physicals).join(){
@@ -148,26 +150,40 @@ impl<'s> System<'s> for MoveSystem{
             //println!("running, since {}", time.delta_seconds());
             if let Some(mv_amount) = movement {
                 let scaled_amount = PLAYER_SPEED * time.delta_seconds() * mv_amount as f32;
-                let x = phys.get_real_position().0;
+                let (x, y) = phys.get_real_position();
                 //println!("updating x by {}", scaled_amount);
-                phys.set_x(
-                    (x + scaled_amount)
-                        //.min(config.stage_width as f32 - player.width as f32 * 0.5)
-                        //.max(player.width as f32 * 0.5),
-                );
+                
+                let mut nx = x + scaled_amount;
+                if scaled_amount > 0.0 {
+                    nx += TILE_SIZE as f32 - 1.0;
+                }
+
+                if map.is_passable(Physical::into_tile_position((nx, y))) {
+                    phys.set_x(
+                        (x + scaled_amount)
+                            //.min(config.stage_width as f32 - player.width as f32 * 0.5)
+                            //.max(player.width as f32 * 0.5),
+                    );
+                }
             }
 
 
             let movement = input.axis_value("vertical_mv");
             if let Some(mv_amount) = movement {
                 let scaled_amount = PLAYER_SPEED * time.delta_seconds() * mv_amount as f32;
-                let y = phys.get_real_position().1;
+                let (x, y) = phys.get_real_position();
                 //println!("updating x by {}", scaled_amount);
-                phys.set_y(
-                    (y + scaled_amount)
-                        //.min(config.stage_height as f32 - player.height as f32 * 0.5)
-                        //.max(player.height as f32 * 0.5),
-                );
+                
+                let ny = y + scaled_amount;
+                
+
+                if map.is_passable(Physical::into_tile_position((x, ny))) {
+                    phys.set_y(
+                        (y + scaled_amount)
+                            //.min(config.stage_height as f32 - player.height as f32 * 0.5)
+                            //.max(player.height as f32 * 0.5),
+                    );
+                }
             }
         }
     }

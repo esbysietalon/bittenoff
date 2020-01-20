@@ -1091,31 +1091,28 @@ fn initialise_player(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
         .with(local_transform)
         .build();
 }
-fn initialise_persons(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
-    for _ in 0..PERSON_NUM{
-        let mut local_transform = Transform::default();
-        
-        let s_w = world.read_resource::<Config>().stage_width;
-        let s_h = world.read_resource::<Config>().stage_height;
 
-        let mut rng = rand::thread_rng();
+pub fn spawn_person(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, phys: &mut WriteStorage<components::Physical>, movers: &mut WriteStorage<components::Mover>, ids: &mut WriteStorage<Id>, offs: &mut WriteStorage<components::Offscreen>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+    let mut local_transform = Transform::default();
+    local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
 
-        local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
-        let sprite_render = SpriteRender {
-            sprite_sheet: sprite_sheet.clone(),
-            sprite_number: 1,
-        };
+    let local_physical = components::Physical::new(((cux * TILE_SIZE + TILE_SIZE / 2) as f32, (cuy * TILE_SIZE + TILE_SIZE / 2) as f32), (ax, ay));
+    let local_render = SpriteRender {
+        sprite_sheet: handles.get(SpriteSheetLabel::Person).unwrap().clone(),
+        sprite_number: 1,
+    };
+    let local_ids = Id::new();
+    let local_mover = components::Mover::new(DEFAULT_BASE_SPEED);
+    let local_off = components::Offscreen::new();
 
-        world
-            .create_entity()
-            .with(sprite_render)
-            .with(components::Id::new())
-            .with(components::Physical::new((rng.gen_range(0 as u32, s_w as u32) as f32, rng.gen_range(0 as u32, s_h as u32) as f32), (rng.gen_range(-1, 2), rng.gen_range(-1, 2))))
-            .with(components::Mover::new(DEFAULT_BASE_SPEED))
-            .with(components::Offscreen::new())
-            .with(local_transform)
-            .build();
-    }
+    ents.build_entity()
+        .with(local_transform, trans)
+        .with(local_physical, phys)
+        .with(local_render, srs)
+        .with(local_ids, ids)
+        .with(local_mover, movers)
+        .with(local_off, offs)
+        .build();
 }
 
 fn load_sprite_sheet(world: &mut World, name: &str) -> Handle<SpriteSheet> {

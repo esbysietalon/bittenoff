@@ -8,7 +8,7 @@ pub use self::offscreen::Offscreen;
 pub use self::sub_ui::SubUi;
 pub use self::particle::Particle;
 pub use self::particle::DeathType as ParticleDeathType;
-
+pub use self::hunger::Hunger;
 mod fps;
 mod tile;
 mod player;
@@ -18,3 +18,4 @@ mod offscreen;
 mod physical;
 mod sub_ui;
 mod particle;
+mod hunger;

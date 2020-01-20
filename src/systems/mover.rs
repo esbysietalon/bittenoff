@@ -24,6 +24,7 @@ impl<'s> System<'s> for MoveSystem{
     );
 
     fn run(&mut self, (mut physicals, mut movers, config, time): Self::SystemData) {
+        //println!("moving!");
         for (mover, phys) in (&mut movers, &mut physicals).join(){
             //setting position to latest move step
             //println!("next move is {:?}", mover.get_move());
@@ -205,8 +206,13 @@ impl<'s> System<'s> for SimpleIdle{
                 None => {
                     let mut rng = rand::thread_rng();
                     
-                    let ax = rng.gen_range(-1, 2);
-                    let ay = rng.gen_range(-1, 2);
+                    let mut ax = rng.gen_range(-1, 2);
+                    let mut ay = rng.gen_range(-1, 2);
+
+                    if rng.gen::<f32>() > 0.2 {
+                        ax = 0;
+                        ay = 0;
+                    }
 
                     let gx = rng.gen_range(0, map.width);
                     let gy = rng.gen_range(0, map.height);

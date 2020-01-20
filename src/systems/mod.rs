@@ -12,6 +12,7 @@ pub use self::particle::ParticleCleanUpSystem;
 pub use self::ui::UiDisplaySystem;
 pub use self::ui::UiControlSystem;
 pub use self::particle::ParticleDisplaySystem;
+pub use self::map::SpawnSystem;
 mod player;
 mod fps;
 mod mover;

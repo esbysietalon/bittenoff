@@ -39,25 +39,25 @@ impl<'s> System<'s> for PhysicalSystem{
 
                 if x > config.stage_width as f32 {
                     //println!("obj position is {:?}; stage dim are {:?}", (x, y), (config.stage_width, config.stage_height));
-                    //println!("obj goes east");
+                    println!("obj goes east");
                     obj.mut_area_x(1);
                     area_changed = true;
                     obj.set_x(TILE_SIZE as f32 / 2.0);    
                 }else if x < 0.0 {
                     //println!("obj position is {:?}; stage dim are {:?}", (x, y), (config.stage_width, config.stage_height));
-                    //println!("obj goes west");
+                    println!("obj goes west");
                     obj.mut_area_x(-1);
                     area_changed = true;
                     obj.set_x(config.stage_width - TILE_SIZE as f32 / 2.0);
                 }else if y > config.stage_height as f32 {
                     //println!("obj position is {:?}; stage dim are {:?}", (x, y), (config.stage_width, config.stage_height));
-                    //println!("obj goes north");
+                    println!("obj goes north");
                     obj.mut_area_y(1);
                     area_changed = true;
                     obj.set_y(TILE_SIZE as f32 / 2.0);
                 }else if y < 0.0 {
                     //println!("obj position is {:?}; stage dim are {:?}", (x, y), (config.stage_width, config.stage_height));
-                    //println!("obj goes south");
+                    println!("obj goes south");
                     obj.mut_area_y(-1);
                     area_changed = true;
                     obj.set_y(config.stage_height - TILE_SIZE as f32 / 2.0);
@@ -155,11 +155,12 @@ impl<'s> System<'s> for PhysicalSystem{
 
             //println!("obj location is now {:?}", (obj.get_tile_position(), obj.get_location()));
             if obj.get_location() == map.location {
-                //if obj.get_real_position() != (480.0, 300.0) {
+                if obj.get_real_position() != (480.0, 300.0) {
                     //println!("obj at {:?}", obj.get_real_position());
-                //}
-                transform.set_translation_xyz(obj.get_real_position().0, obj.get_real_position().1, 0.0);
+                }
+                transform.set_translation_xyz(obj.get_real_position().0, obj.get_real_position().1, 0.1);
             }else{
+                //println!("obj is offscreen obj: {:?} map: {:?}", obj.get_location(), map.location);
                 transform.set_translation_xyz(-100.0, 0.0, 0.0);
             }
             

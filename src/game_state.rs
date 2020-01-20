@@ -178,6 +178,8 @@ impl PartialEq for Anchor {
 pub struct Area{
     pub tiles: Vec<TileBlock>,
     pub anchor_points: Vec<Anchor>,
+    pub structures: Vec<Rect>,
+    pub spawned: bool,
     pub n: usize,
     pub e: usize,
     pub w: usize,
@@ -193,6 +195,8 @@ impl Area{
         Area {
             tiles: Vec::new(),
             anchor_points: Vec::new(),
+            structures: Vec::new(),
+            spawned: false,
             n: usize::max_value(),
             e: usize::max_value(),
             w: usize::max_value(),
@@ -213,6 +217,8 @@ pub struct Map{
     pub location: (i32, i32),
     pub tiles: Vec<TileBlock>,
     pub anchor_points: Vec<Anchor>,
+    pub structures: Vec<Rect>,
+    pub spawned: bool,
     pub entities: Vec<Id>,
     pub world_map: Vec<Area>,
     pub area_index: usize,
@@ -228,6 +234,8 @@ impl Map {
             location: (0, 0),
             tiles: vec![TileBlock::new(Tile::Size, true); width * height],
             anchor_points: Vec::new(),
+            structures: Vec::new(),
+            spawned: false,
             entities: vec![Id::nil(); ENTITY_LIM],
             world_map: Vec::new(),
             area_index: 0,
@@ -366,7 +374,7 @@ impl Dimensions {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Rect {
+pub struct Rect {
     pub x: usize,
     pub y: usize,
     pub w: usize,
@@ -500,7 +508,7 @@ pub fn generate_structures(area: &mut Area, location: (i32, i32), seed: (f64, f6
     
     rect_squad.push(Rect::new((1, 1), (map_width-1, map_height-1)));
 
-    let mut structure_num = (noise_check.abs() / 0.1) as usize;
+    let mut structure_num = ((noise_check.abs() - 0.4).max(0.0) / 0.1) as usize;
 
     //println!("setup complete; structure_num {}", structure_num);
 
@@ -572,6 +580,7 @@ pub fn generate_structures(area: &mut Area, location: (i32, i32), seed: (f64, f6
 
         rect.shrink((shrinkage as f32 * 1.5) as usize, shrinkage);
 
+        area.structures.push(rect.clone());
         //println!("transferring rect tiles..");
 
         let mut perimeter = Vec::new();
@@ -611,14 +620,14 @@ pub fn generate_structures(area: &mut Area, location: (i32, i32), seed: (f64, f6
 pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
     //println!("loading area to map from {}", to_load.1);
 
-    let mut area_pointer = &(Area::new());
+    let mut area_pointer = &mut (Area::new());
     match to_load.0 {
         Some(a) => {
             map.world_map.push(a);
-            area_pointer = &map.world_map[to_load.1];
+            area_pointer = &mut map.world_map[to_load.1];
         }
         None => {
-            area_pointer = &map.world_map[to_load.1];
+            area_pointer = &mut map.world_map[to_load.1];
         }
     }
 
@@ -629,6 +638,9 @@ pub fn load_map(map: &mut Map, to_load: (Option<Area>, usize)) {
         map.anchor_points[i] = (*area_pointer).anchor_points[i].clone();
     }
 
+    map.structures = (*area_pointer).structures.clone();
+    map.spawned = (*area_pointer).spawned;
+    (*area_pointer).spawned = true;
     map.area_index = to_load.1;
     map.rerolled = true;
 }
@@ -898,6 +910,10 @@ fn generate_map(world: &mut World){
     }
 
     generate_structures(&mut area, map.location, (map.world_seed.6, map.world_seed.7), (map.width, map.height));
+
+    map.structures = area.structures.clone();
+    map.spawned = area.spawned;
+    area.spawned = true;
 
     for y in 0..h {
         for x in 0..w {
@@ -1176,7 +1192,7 @@ impl SimpleState for LoadingState {
             
             initialise_player(*world, self.sprite_sheet_handle.clone().unwrap());
     
-            initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
+            //initialise_persons(world, self.sprite_sheet_handle.clone().unwrap());
             
             initialise_ui_system(world);
 

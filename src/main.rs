@@ -70,6 +70,7 @@ fn main() -> amethyst::Result<()> {
         .with_bundle(TransformBundle::new())?
         .with_bundle(input_bundle)?
         .with(systems::MapSystem, "map_update_system", &[])
+        .with(systems::SpawnSystem, "spawn_system", &[])
         .with(systems::PlayerMoveSystem, "player_move_system", &["input_system"])
         .with(systems::PlayerLocalitySystem, "player_locality_system", &[])
         .with(systems::PlayerActionSystem::new(), "player_action_system", &[])

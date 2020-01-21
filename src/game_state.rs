@@ -47,6 +47,8 @@ pub const DEFAULT_HUNGER_CAPACITY: f32 = 60.0 * 10.0; //in seconds / DEFAULT_HUN
 pub const PLANT_NUM_LOWER: usize = 15;
 pub const PLANT_NUM_UPPER: usize = 20;
 
+pub const DEFAULT_BASE_FRUIT_RATE: f32 = 0.005;
+
 pub const DEFAULT_BASE_SPEED: f32 = 120.0;
 
 pub const TILE_SIZE: usize = 16;
@@ -299,20 +301,23 @@ impl SpriteSheetHandles {
         }
     }
     pub fn add(&mut self, label: SpriteSheetLabel, handle: Handle<SpriteSheet>) {
-        println!("adding ({:?}, {:?})", label, handle);
+        //println!("adding ({:?}, {:?})", label, handle);
         self.handles.push((label, handle));
     }
     pub fn get(&self, label: SpriteSheetLabel) -> Option<Handle<SpriteSheet>> {
         let mut out = None;
-        println!("self.handles {:?}", self.handles);
+        //println!("self.handles {:?}", self.handles);
         for (tag, handle) in self.handles.iter() {
-            println!("tag {:?} handle {:?}", tag, handle);
+            //println!("tag {:?} handle {:?}", tag, handle);
             if *tag == label {
                 out = Some(handle.clone());
                 break;
             }
         }
         out
+    }
+    pub fn is_empty(&self) -> bool {
+        self.handles.len() == 0
     }
 }
 
@@ -414,6 +419,7 @@ impl Rect {
         }
     }
     pub fn is_in(&self, point: (usize, usize)) -> bool {
+        println!("is {:?} within [{:?} {:?}]", point, (self.x, self.y), (self.x + self.w, self.y + self.h));
         (point.0 >= self.x && point.0 <= self.x + self.w && point.1 >= self.y && point.1 <= self.y + self.h)
     }
     pub fn check_collision(&self, o: &Rect) -> bool {
@@ -1126,7 +1132,7 @@ pub fn spawn_person(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<Spr
     let mut local_transform = Transform::default();
     local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
 
-    let local_physical = components::Physical::new(((cux * TILE_SIZE + TILE_SIZE / 2) as f32, (cuy * TILE_SIZE + TILE_SIZE / 2) as f32), (ax, ay));
+    let local_physical = components::Physical::new(((cux * TILE_SIZE) as f32, (cuy * TILE_SIZE) as f32), (ax, ay));
     let local_render = SpriteRender {
         sprite_sheet: handles.get(SpriteSheetLabel::Person).unwrap().clone(),
         sprite_number: 1,
@@ -1155,9 +1161,9 @@ pub fn spawn_plant(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<Spri
     let mut local_transform = Transform::default();
     local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
 
-    let local_physical = components::Physical::new(((cux * TILE_SIZE + TILE_SIZE / 2) as f32, (cuy * TILE_SIZE + TILE_SIZE / 2) as f32), (ax, ay));
+    let local_physical = components::Physical::new(((cux * TILE_SIZE) as f32, (cuy * TILE_SIZE) as f32), (ax, ay));
     
-    println!("handles Plants -> {:?}", handles.get(SpriteSheetLabel::Plants));
+    //println!("handles Plants -> {:?}", handles.get(SpriteSheetLabel::Plants));
 
     
     let local_render = SpriteRender {
@@ -1169,7 +1175,7 @@ pub fn spawn_plant(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<Spri
 
     let mut rng = rand::thread_rng();
     let ripeness = rng.gen::<f32>();
-    let fruit_rate = rng.gen::<f32>() * 0.4 + 0.8;
+    let fruit_rate = (rng.gen::<f32>() * 0.4 + 0.8) * DEFAULT_BASE_FRUIT_RATE;
 
     let local_plant = components::Plant::new(true, fruit_rate, ripeness);
 
@@ -1245,6 +1251,7 @@ impl SimpleState for LoadingState {
             data.world.insert(map);
 
 
+            
             let world = &mut data.world;
 
             initialise_spritesheet_handles(world);

@@ -21,17 +21,21 @@ impl<'s> System<'s> for PhysicalSystem{
 
     fn run(&mut self, (mut transforms, mut objs, mut movers, mut offscreens, ids, config, mut map): Self::SystemData) {
         //TODO read objs and transforms and apply to map
-        map.entities = vec![Id::nil(); (map.width * map.height) as usize];
-        for (obj, id, mover) in (&mut objs, &ids, &mut movers).join() {
+        map.entities = vec![Id::nil(); map.width * map.height];
+
+        for (obj, id) in (&mut objs, &ids).join(){
+        
+            let (x, y) = obj.get_tile_position();
+
+            let index = x + y * map.width;
+
+            if x < map.width && y < map.height {
+                map.entities[index] = id.clone();
+            }
+        }
+
+        for (obj, mover) in (&mut objs, &mut movers).join() {
             if obj.get_location() == map.location {
-                let (x, y) = obj.get_tile_position();
-
-                let index = x + y * map.width;
-
-                if x < map.width && y < map.height {
-                    map.entities[index] = id.clone();
-                }
-
                 let (x, y) = obj.get_real_position();
                 let mut area_changed = false;
 

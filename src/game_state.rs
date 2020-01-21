@@ -43,6 +43,7 @@ pub const PERSON_NUM: u32 = 25;
 
 pub const DEFAULT_HUNGER_RATE: f32 = 1.0; 
 pub const DEFAULT_HUNGER_CAPACITY: f32 = 60.0 * 10.0; //in seconds / DEFAULT_HUNGER_RATE till starving
+pub const BASE_OFFSCREEN_HUNGER_RELIEF_CHANCE: f32 = 0.001; //chance per second offscreen
 
 pub const PLANT_NUM_LOWER: usize = 15;
 pub const PLANT_NUM_UPPER: usize = 20;
@@ -141,6 +142,22 @@ impl TileBlock {
             passable,
         }
     }
+}
+
+#[derive(Clone, Copy, FromPrimitive, Debug)]
+pub enum GoalPriority {
+    MealGoal,
+    MealSearch,
+    SimpleIdle,
+    Size,
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, FromPrimitive, Debug)]
+pub enum GoalType {
+    MealGoal,
+    MealSearch,
+    SimpleIdle,
+    Size,
 }
 
 #[derive(Eq, Debug, Hash)]
@@ -257,7 +274,7 @@ impl Map {
             anchor_points: Vec::new(),
             structures: Vec::new(),
             spawned: false,
-            entities: vec![Id::nil(); ENTITY_LIM],
+            entities: vec![Id::nil(); width * height],
             world_map: Vec::new(),
             area_index: 0,
             rerolled: false,

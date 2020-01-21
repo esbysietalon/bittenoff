@@ -4,8 +4,8 @@ use amethyst::{
     ecs::prelude::{Join, Read, ReadStorage, System, SystemData, Write, WriteStorage},
     input::{InputHandler, StringBindings},
 };
-use crate::game_state::{Config, Map, Anchor};
-use crate::components::{Id, Mover, Goal, Physical};
+use crate::game_state::{Config, Map, Anchor, GoalPriority, GoalType, EntityType};
+use crate::components::{Id, Mover, Goal, Physical, Plant, Hunger};
 
 use pathfinding::prelude::astar;
 use pathfinding::prelude::absdiff;
@@ -84,12 +84,15 @@ impl<'s> System<'s> for RudderSystem{
     type SystemData = (
         WriteStorage<'s, Physical>,
         WriteStorage<'s, Mover>,
+        ReadStorage<'s, Id>,
+        WriteStorage<'s, Hunger>,
+        WriteStorage<'s, Plant>,
         Read<'s, Config>,
         Read<'s, Map>,
     );
 
-    fn run(&mut self, (mut physicals, mut movers, config, map): Self::SystemData) {
-        for (mover, phys) in (&mut movers, &mut physicals).join(){
+    fn run(&mut self, (mut physicals, mut movers, ids, mut hungs, mut plants, config, map): Self::SystemData) {
+        for (mover, phys, id) in (&mut movers, &mut physicals, &ids).join(){
             if mover.is_step_vec_empty() && map.location == phys.get_location() {
                 match mover.get_goal() {
                     None => {}
@@ -120,7 +123,50 @@ impl<'s> System<'s> for RudderSystem{
                                 }
                             }
                         }else if phys.get_tile_position() == goal.local() && phys.get_location() == goal.area() {
-                            //println!("reached goal successfully");
+                            //println!("reached goal successfully; goaltype {:?}", mover.get_goal_type());
+                            match mover.get_goal_type() {
+                                GoalType::SimpleIdle => {
+
+                                }
+                                GoalType::Size => {
+
+                                }
+                                GoalType::MealSearch => {
+
+                                }
+                                GoalType::MealGoal => {
+                                    
+                                    let mut meal = Id::nil();
+                                    
+                                    
+                                    for (sid, hung) in (&ids, &mut hungs).join() {
+                                        if sid.get_uuid() == id.get_uuid() {
+                                            //getting meal id
+                                            meal = hung.get_meal_id();
+
+
+                                            hung.set_meal_id(Id::nil());
+                                            //become full
+                                            println!("becoming full");
+                                            hung.set_hunger(hung.get_capacity());
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if meal.get_type() == EntityType::Plant { 
+                                        for (pid, plant) in (&ids, &mut plants).join() {
+                                            //println!("pid {} meal_id {}", pid.get_uuid(), meal_id);
+                                            if meal.get_uuid() == pid.get_uuid() {
+                                                //reset fruit ripeness
+                                                println!("resetting fruit ripeness from {}", plant.get_fruit_progress());
+                                                plant.set_fruit_progress(0.0);
+                                                break;
+                                            }       
+                                        }
+                                    }
+                                    
+                                }
+                            }
                             mover.pop_goal();
                         }else if goal.area() != phys.get_location() {
                             //println!("not same area, sending to other area");
@@ -198,9 +244,6 @@ impl<'s> System<'s> for SimpleIdle{
 
     fn run(&mut self, (physes, mut movers, config, map): Self::SystemData) {
         for (mover, phys) in (&mut movers, &physes).join(){
-            /*if map.location != phys.get_location() {
-                continue;
-            }*/
             
             match mover.get_goal() {
                 None => {
@@ -225,52 +268,10 @@ impl<'s> System<'s> for SimpleIdle{
                         dest_anchor.set_area((ax, ay));
 
                         //println!("destination anchor {:?}", dest_anchor);
-                        mover.add_goal( Goal::new(0, dest_anchor) );
-                    }
-                    /*}else{
-                        let (mut tempx, mut tempy) = map.location;
                         
-                        /*
-                        area.anchor_points.push(west);
-                        area.anchor_points.push(east);
-                        area.anchor_points.push(north);
-                        area.anchor_points.push(south);
-                        */
-
-                        while (tempx, tempy) != (ax, ay) {
-                            if tempx < ax {
-                                //east
-                                let mut east_anchor = map.anchor_points[1].clone();
-                                east_anchor.set_area((tempx, tempy));
-                                mover.add_goal( Goal::new(1, east_anchor) );
-                                tempx += 1;
-                            }else if tempx > ax {
-                                //east
-                                let mut west_anchor = map.anchor_points[0].clone();
-                                west_anchor.set_area((tempx, tempy));
-                                mover.add_goal( Goal::new(1, west_anchor) );
-                                tempx -= 1;
-                            }
-                            if tempy < ay {
-                                //north
-                                let mut north_anchor = map.anchor_points[2].clone();
-                                north_anchor.set_area((tempx, tempy));
-                                mover.add_goal( Goal::new(1, north_anchor) );
-                                tempy += 1;
-                            }else if tempy > ay {
-                                //south
-                                let mut south_anchor = map.anchor_points[3].clone();
-                                south_anchor.set_area((tempx, tempy));
-                                mover.add_goal( Goal::new(1, south_anchor) );
-                                tempy -= 1;
-                            }
-                        }
-
-                        let mut dest_anchor = map.anchor_points[gx + gy * map.width].clone();
-                        dest_anchor.set_area((ax, ay));
-
-                        mover.add_goal( Goal::new(1, dest_anchor) );
-                    }*/
+                        
+                        mover.add_goal( Goal::new(GoalPriority::SimpleIdle as usize, dest_anchor, GoalType::SimpleIdle) );
+                    }
                 },
                 _ => {},
             }

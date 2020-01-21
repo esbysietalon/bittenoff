@@ -26,6 +26,9 @@ impl Plant {
     pub fn mut_fruit_progress(&mut self, x: f32) {
         self.fruit_progress += x;
     }
+    pub fn set_fruit_progress(&mut self, x: f32) {
+        self.fruit_progress = x;
+    }
 }
 
 impl Component for Plant {

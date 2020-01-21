@@ -75,6 +75,7 @@ fn main() -> amethyst::Result<()> {
         .with(systems::PlayerLocalitySystem, "player_locality_system", &[])
         .with(systems::PlayerActionSystem::new(), "player_action_system", &[])
         .with(systems::SimpleIdle, "simple_idle_system", &[])
+        .with(systems::HungerGoalSystem, "hunger_goal_system", &[])
         .with(systems::PhysicalSystem, "physical_system", &[])
         .with(systems::CounterSystem, "fps_system", &[])
         .with(systems::MoveSystem, "move_system", &[])

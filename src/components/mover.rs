@@ -2,19 +2,21 @@ use amethyst::ecs::prelude::{Component, VecStorage};
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 
-use crate::game_state::Anchor;
+use crate::game_state::{Anchor, GoalType};
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Goal {
     pub priority: usize,
     pub point: Anchor,
+    pub gtype: GoalType,
 }
 
 impl Goal {
-    pub fn new(priority: usize, point: Anchor) -> Goal {
+    pub fn new(priority: usize, point: Anchor, gtype: GoalType) -> Goal {
         Goal {
             priority,
             point,
+            gtype,
         }
     }
     pub fn pos(&self) -> (f32, f32) {
@@ -65,6 +67,8 @@ impl Mover{
             last_step: (usize::max_value(), usize::max_value()),
         }
     }
+
+
     pub fn speed(&self) -> f32 {
         self.base_speed
     }
@@ -122,6 +126,23 @@ impl Mover{
             None => None,
             Some(g) => Some(g.point.clone()),
         }
+    }
+    pub fn get_goal_type(&self) -> GoalType {
+        let goal = self.pos_goals.peek();
+
+        match goal {
+            None => GoalType::Size,
+            Some(g) => g.gtype,
+        }
+    }
+    pub fn has_goal_type(&self, gtype: GoalType) -> bool {
+        let mut out = false;
+        for goal in self.pos_goals.iter() {
+            if goal.gtype == gtype {
+                out = true;
+            }
+        }
+        out
     }
     pub fn pop_goal(&mut self) -> Option<Anchor> {
         let goal = self.pos_goals.pop();

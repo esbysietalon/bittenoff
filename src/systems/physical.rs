@@ -151,14 +151,14 @@ impl<'s> System<'s> for PhysicalSystem{
             }
             //println!("end frame");
         }
-        for (transform, obj) in (&mut transforms, &objs).join(){
+        for (transform, obj, id) in (&mut transforms, &objs, &ids).join(){
 
             //println!("obj location is now {:?}", (obj.get_tile_position(), obj.get_location()));
             if obj.get_location() == map.location {
                 if obj.get_real_position() != (480.0, 300.0) {
                     //println!("obj at {:?}", obj.get_real_position());
                 }
-                transform.set_translation_xyz(obj.get_real_position().0, obj.get_real_position().1, 0.1);
+                transform.set_translation_xyz(obj.get_real_position().0, obj.get_real_position().1, 0.1 + 0.01 * (id.get_type() as usize as f32));
             }else{
                 //println!("obj is offscreen obj: {:?} map: {:?}", obj.get_location(), map.location);
                 transform.set_translation_xyz(-100.0, 0.0, 0.0);

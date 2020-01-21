@@ -87,8 +87,8 @@ pub enum SpellComponent {
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum EntityType {
-    Person,
     Plant,
+    Person,
     Size,
 }
 

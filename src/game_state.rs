@@ -419,7 +419,7 @@ impl Rect {
         }
     }
     pub fn is_in(&self, point: (usize, usize)) -> bool {
-        println!("is {:?} within [{:?} {:?}]", point, (self.x, self.y), (self.x + self.w, self.y + self.h));
+        //println!("is {:?} within [{:?} {:?}]", point, (self.x, self.y), (self.x + self.w, self.y + self.h));
         (point.0 >= self.x && point.0 <= self.x + self.w && point.1 >= self.y && point.1 <= self.y + self.h)
     }
     pub fn check_collision(&self, o: &Rect) -> bool {

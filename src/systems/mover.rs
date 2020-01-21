@@ -225,7 +225,7 @@ impl<'s> System<'s> for SimpleIdle{
                         dest_anchor.set_area((ax, ay));
 
                         //println!("destination anchor {:?}", dest_anchor);
-                        mover.add_goal( Goal::new(1, dest_anchor) );
+                        mover.add_goal( Goal::new(0, dest_anchor) );
                     }
                     /*}else{
                         let (mut tempx, mut tempy) = map.location;

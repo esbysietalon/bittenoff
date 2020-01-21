@@ -41,6 +41,12 @@ pub const PLAYER_SPEED: f32 = 120.0;
 
 pub const PERSON_NUM: u32 = 25;
 
+pub const DEFAULT_HUNGER_RATE: f32 = 1.0; 
+pub const DEFAULT_HUNGER_CAPACITY: f32 = 60.0 * 10.0; //in seconds / DEFAULT_HUNGER_RATE till starving
+
+pub const PLANT_NUM_LOWER: usize = 15;
+pub const PLANT_NUM_UPPER: usize = 20;
+
 pub const DEFAULT_BASE_SPEED: f32 = 120.0;
 
 pub const TILE_SIZE: usize = 16;
@@ -75,6 +81,19 @@ pub enum SpellComponent {
     Upon,
     Impact,
     Size,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum EntityType {
+    Person,
+    Plant,
+    Size,
+}
+
+#[derive(Debug, Clone, Copy, FromPrimitive)]
+pub enum Plant {
+    BushBerryRipe = 0,
+    BushBerryNoBerry,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -252,10 +271,11 @@ impl Map {
     }
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum SpriteSheetLabel {
     Particles,
     Person,
+    Plants,
     Tiles,
     UiTiles,
     Size,
@@ -267,7 +287,7 @@ impl Default for SpriteSheetLabel {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SpriteSheetHandles{
     handles: Vec<(SpriteSheetLabel, Handle<SpriteSheet>)>,
 }
@@ -279,11 +299,14 @@ impl SpriteSheetHandles {
         }
     }
     pub fn add(&mut self, label: SpriteSheetLabel, handle: Handle<SpriteSheet>) {
+        println!("adding ({:?}, {:?})", label, handle);
         self.handles.push((label, handle));
     }
     pub fn get(&self, label: SpriteSheetLabel) -> Option<Handle<SpriteSheet>> {
         let mut out = None;
+        println!("self.handles {:?}", self.handles);
         for (tag, handle) in self.handles.iter() {
+            println!("tag {:?} handle {:?}", tag, handle);
             if *tag == label {
                 out = Some(handle.clone());
                 break;
@@ -996,14 +1019,19 @@ fn generate_map(world: &mut World){
 }
 
 fn initialise_spritesheet_handles(world: &mut World) {
+    println!("initialising spritesheet handles");
+    
     let mut handles = SpriteSheetHandles::new();
 
     handles.add(SpriteSheetLabel::Particles, load_sprite_sheet(world, "particles"));
     handles.add(SpriteSheetLabel::Person, load_sprite_sheet(world, "player"));
     handles.add(SpriteSheetLabel::Tiles, load_sprite_sheet(world, "tiles"));
     handles.add(SpriteSheetLabel::UiTiles, load_sprite_sheet(world, "ui_tile"));
+    handles.add(SpriteSheetLabel::Plants, load_sprite_sheet(world, "plants"));
 
     world.insert(handles);
+
+    println!("spritesheet handles initialised");
 }
 
 fn initialise_ui_system(world: &mut World) {
@@ -1086,13 +1114,15 @@ fn initialise_player(world: &mut World, sprite_sheet: Handle<SpriteSheet>){
             width: PLAYER_WIDTH,
             height: PLAYER_HEIGHT,
         })
-        .with(components::Id::new())
+        .with(components::Id::new(EntityType::Person))
         .with(components::Physical::new((s_w / 2.0, s_h / 2.0), (0, 0)))
         .with(local_transform)
         .build();
 }
 
-pub fn spawn_person(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, phys: &mut WriteStorage<components::Physical>, movers: &mut WriteStorage<components::Mover>, ids: &mut WriteStorage<Id>, offs: &mut WriteStorage<components::Offscreen>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+pub fn spawn_person(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, phys: &mut WriteStorage<components::Physical>, 
+    movers: &mut WriteStorage<components::Mover>, ids: &mut WriteStorage<Id>, offs: &mut WriteStorage<components::Offscreen>, 
+    trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>, hungs: &mut WriteStorage<components::Hunger>) {
     let mut local_transform = Transform::default();
     local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
 
@@ -1101,9 +1131,14 @@ pub fn spawn_person(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<Spr
         sprite_sheet: handles.get(SpriteSheetLabel::Person).unwrap().clone(),
         sprite_number: 1,
     };
-    let local_ids = Id::new();
+    let local_ids = Id::new(EntityType::Person);
     let local_mover = components::Mover::new(DEFAULT_BASE_SPEED);
     let local_off = components::Offscreen::new();
+
+    let mut rng = rand::thread_rng();
+    let hung = rng.gen::<f32>() * 0.5 + 0.5;
+
+    let local_hunger = components::Hunger::new(DEFAULT_HUNGER_CAPACITY, DEFAULT_HUNGER_RATE, hung * DEFAULT_HUNGER_CAPACITY);
 
     ents.build_entity()
         .with(local_transform, trans)
@@ -1111,6 +1146,39 @@ pub fn spawn_person(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<Spr
         .with(local_render, srs)
         .with(local_ids, ids)
         .with(local_mover, movers)
+        .with(local_off, offs)
+        .with(local_hunger, hungs)
+        .build();
+}
+
+pub fn spawn_plant(cux: usize, cuy: usize, ax: i32, ay: i32, handles: &Read<SpriteSheetHandles>, ents: &mut Entities, phys: &mut WriteStorage<components::Physical>, plants: &mut WriteStorage<components::Plant>, ids: &mut WriteStorage<Id>, offs: &mut WriteStorage<components::Offscreen>, trans: &mut WriteStorage<Transform>, srs: &mut WriteStorage<SpriteRender>) {
+    let mut local_transform = Transform::default();
+    local_transform.set_translation_xyz(-100.0, 0.0, 0.0);
+
+    let local_physical = components::Physical::new(((cux * TILE_SIZE + TILE_SIZE / 2) as f32, (cuy * TILE_SIZE + TILE_SIZE / 2) as f32), (ax, ay));
+    
+    println!("handles Plants -> {:?}", handles.get(SpriteSheetLabel::Plants));
+
+    
+    let local_render = SpriteRender {
+        sprite_sheet: handles.get(SpriteSheetLabel::Plants).unwrap().clone(),
+        sprite_number: 0,
+    };
+    let local_ids = Id::new(EntityType::Plant);
+    let local_off = components::Offscreen::new();
+
+    let mut rng = rand::thread_rng();
+    let ripeness = rng.gen::<f32>();
+    let fruit_rate = rng.gen::<f32>() * 0.4 + 0.8;
+
+    let local_plant = components::Plant::new(true, fruit_rate, ripeness);
+
+    ents.build_entity()
+        .with(local_transform, trans)
+        .with(local_physical, phys)
+        .with(local_render, srs)
+        .with(local_plant, plants)
+        .with(local_ids, ids)
         .with(local_off, offs)
         .build();
 }
@@ -1179,6 +1247,8 @@ impl SimpleState for LoadingState {
 
             let world = &mut data.world;
 
+            initialise_spritesheet_handles(world);
+
             generate_map(*world);
 
             self.sprite_sheet_handle.replace(load_sprite_sheet(*world, "tiles"));
@@ -1193,7 +1263,7 @@ impl SimpleState for LoadingState {
             
             initialise_ui_system(world);
 
-            initialise_spritesheet_handles(world);
+            
 
             initialise_camera(*world);
 

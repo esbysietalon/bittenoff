@@ -80,6 +80,7 @@ fn main() -> amethyst::Result<()> {
         .with(systems::MoveSystem, "move_system", &[])
         .with(systems::RudderSystem, "rudder_system", &[])
         .with(systems::OffscreenSystem, "offscreen_system", &[])
+        .with(systems::PlantSystem, "plant_system", &[])
         .with(systems::UiDisplaySystem, "ui_display_system", &[])
         .with(systems::UiControlSystem::new(), "ui_control_system", &[])
         .with(systems::ParticleCleanUpSystem, "particle_clean_up_system", &[])

@@ -7,11 +7,11 @@ pub struct Hunger{
 }
 
 impl Hunger {
-    pub fn new(capacity: f32, rate: f32) -> Hunger{
+    pub fn new(capacity: f32, rate: f32, current: f32) -> Hunger{
         Hunger{
             capacity,
             rate,
-            current: capacity,
+            current,
         }
     }
     pub fn get_hunger(&self) -> f32 {

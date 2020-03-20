@@ -1,5 +1,1 @@
-(
-  title: "BITTENOFF",
-  dimensions: Some((1920, 1080)),
-  maximized: true,
-)
+interp "let t = node ( emptylist , node ( cons (5 , cons (2 , cons (1 , emptylist ))) , emptytree , node ( emptylist , emptytree , emptytree )), node ( tl ( cons (5 , emptylist )) , node ( cons (10 , cons (9 , cons (8 , emptylist ))) , emptytree , emptytree ), node ( emptylist , node ( cons (9 , emptylist ), emptytree , emptytree ), emptytree ) ) ) in caseT t of { emptytree -> 10 , node (a ,l ,r) -> if empty?(a) then caseT l of { emptytree -> 21 , node (b , ll , rr ) -> if empty?(b) then 4 else if zero?(hd(b)) then 22 else 99 } else 5 }";;
